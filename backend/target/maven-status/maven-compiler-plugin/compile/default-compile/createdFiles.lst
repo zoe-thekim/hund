@@ -1,5 +1,6 @@
 com/october/shop/repository/UserRepository.class
 com/october/shop/repository/ProductImageRepository.class
+com/october/shop/model/ProductImages.class
 com/october/shop/model/Product.class
 com/october/shop/model/User.class
 com/october/shop/model/OrderItem$ItemStatus.class
