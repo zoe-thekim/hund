@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install -D typescript)",
+      "Bash(npm run typecheck)",
+      "Read(//Users/varm/dev/october/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
