@@ -1,6 +1,8 @@
 package com.october.shop.model;
 
+import com.fasterxml.jackson.databind.ser.std.StdKeySerializers;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -27,13 +29,10 @@ public class User {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 50)
-    private String nickname;
-
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = true, length = 20)
     private String phoneNumber;
 
-    @Column(name = "phone_verified", nullable = false)
+    @Column(name = "phone_verified", nullable = true)
     private Boolean phoneVerified = false;
 
     @Enumerated(EnumType.STRING)

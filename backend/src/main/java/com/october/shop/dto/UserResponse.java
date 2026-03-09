@@ -11,7 +11,6 @@ public class UserResponse {
     private Long id;
     private String name;
     private String email;
-    private String nickname;
     private String phoneNumber;
     private Boolean phoneVerified;
     private User.AuthProvider provider;
@@ -26,7 +25,6 @@ public class UserResponse {
         response.setId(user.getId());
         response.setName(user.getName());
         response.setEmail(user.getEmail());
-        response.setNickname(user.getNickname());
         response.setPhoneNumber(user.getPhoneNumber());
         response.setPhoneVerified(user.getPhoneVerified());
         response.setProvider(user.getProvider());

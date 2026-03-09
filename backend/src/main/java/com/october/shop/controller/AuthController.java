@@ -2,6 +2,7 @@ package com.october.shop.controller;
 
 import com.october.shop.dto.*;
 import com.october.shop.model.User;
+import com.october.shop.security.JwtTokenProvider;
 import com.october.shop.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserRegistrationRequest request) {
@@ -27,7 +30,6 @@ public class AuthController {
             user.setName(request.getName());
             user.setEmail(request.getEmail());
             user.setPassword(request.getPassword());
-            user.setNickname(request.getNickname());
             user.setPhoneNumber(request.getPhoneNumber());
             user.setAddress(request.getAddress());
             user.setAgreeToTerms(request.getAgreeToTerms());
@@ -37,7 +39,11 @@ public class AuthController {
             User savedUser = userService.registerUser(user);
             UserResponse response = UserResponse.from(savedUser);
 
-            return ResponseEntity.ok(response);
+            Map<String, Object> registerResponse = new HashMap<>();
+            registerResponse.put("user", response);
+            registerResponse.put("token", jwtTokenProvider.generateToken(savedUser));
+
+            return ResponseEntity.ok(registerResponse);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();
             error.put("message", e.getMessage());
@@ -51,10 +57,9 @@ public class AuthController {
             User user = userService.authenticateUser(request.getEmail(), request.getPassword());
             UserResponse response = UserResponse.from(user);
 
-            // TODO: JWT 토큰 생성 및 반환
             Map<String, Object> loginResponse = new HashMap<>();
             loginResponse.put("user", response);
-            loginResponse.put("token", "dummy-jwt-token"); // 임시 토큰
+            loginResponse.put("token", jwtTokenProvider.generateToken(user));
 
             return ResponseEntity.ok(loginResponse);
         } catch (RuntimeException e) {
@@ -67,14 +72,6 @@ public class AuthController {
     @GetMapping("/check-email")
     public ResponseEntity<Map<String, Boolean>> checkEmail(@RequestParam String email) {
         boolean exists = userService.isEmailExists(email);
-        Map<String, Boolean> response = new HashMap<>();
-        response.put("exists", exists);
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/check-nickname")
-    public ResponseEntity<Map<String, Boolean>> checkNickname(@RequestParam String nickname) {
-        boolean exists = userService.isNicknameExists(nickname);
         Map<String, Boolean> response = new HashMap<>();
         response.put("exists", exists);
         return ResponseEntity.ok(response);

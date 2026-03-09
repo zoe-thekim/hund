@@ -10,6 +10,7 @@ const useStore = create((set, get) => ({
   authUser: null,
   authToken: null,
   isLoggedIn: false,
+  authInitialized: false,
 
   setProducts: (products) => set({ products }),
 
@@ -89,6 +90,30 @@ const useStore = create((set, get) => ({
     }
   },
 
+  updateAuthUser: (nextUser) => {
+    const { authToken, isLoggedIn } = get()
+    const authState = {
+      authUser: nextUser,
+      authToken,
+      isLoggedIn,
+    }
+
+    set({ authUser: nextUser })
+
+    if (typeof window !== 'undefined') {
+      const hasLocal = window.localStorage.getItem(AUTH_STORAGE_KEY)
+      const hasSession = window.sessionStorage.getItem(AUTH_SESSION_KEY)
+
+      if (hasLocal) {
+        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState))
+      } else if (hasSession) {
+        window.sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authState))
+      } else if (isLoggedIn) {
+        window.sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(authState))
+      }
+    }
+  },
+
   logout: () => {
     set({
       authUser: null,
@@ -104,6 +129,7 @@ const useStore = create((set, get) => ({
 
   initializeAuth: () => {
     if (typeof window === 'undefined') {
+      set({ authInitialized: true })
       return
     }
 
@@ -111,6 +137,7 @@ const useStore = create((set, get) => ({
       window.localStorage.getItem(AUTH_STORAGE_KEY) ??
       window.sessionStorage.getItem(AUTH_SESSION_KEY)
     if (!storedAuth) {
+      set({ authInitialized: true })
       return
     }
 
@@ -121,11 +148,15 @@ const useStore = create((set, get) => ({
           authUser: parsedAuth.authUser,
           authToken: parsedAuth.authToken ?? null,
           isLoggedIn: true,
+          authInitialized: true,
         })
+        return
       }
     } catch {
       window.localStorage.removeItem(AUTH_STORAGE_KEY)
     }
+
+    set({ authInitialized: true })
   },
 }))
 

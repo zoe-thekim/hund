@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Home from './pages/home/Home'
@@ -14,10 +14,16 @@ import useStore from './store/useStore'
 
 function App() {
   const initializeAuth = useStore((state) => state.initializeAuth)
+  const isLoggedIn = useStore((state) => state.isLoggedIn)
+  const authInitialized = useStore((state) => state.authInitialized)
 
   useEffect(() => {
     initializeAuth()
   }, [initializeAuth])
+
+  if (!authInitialized) {
+    return null
+  }
 
   return (
     <Router>
@@ -32,7 +38,7 @@ function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/mypage" element={<MyPage />} />
+            <Route path="/mypage" element={isLoggedIn ? <MyPage /> : <Navigate to="/login" replace />} />
           </Routes>
         </main>
         <Footer />

@@ -24,6 +24,7 @@ public class SchemaMigrationRunner implements CommandLineRunner {
         dropLegacyProductImageUniqueConstraint();
         dropLegacyProductImageUniqueIndexes();
         dropSingleColumnUniqueOnProductId();
+        migrateUserPhoneAndNicknameSchema();
     }
 
     private void dropLegacyProductImageUniqueConstraint() {
@@ -109,6 +110,28 @@ public class SchemaMigrationRunner implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("Failed to drop unique(product_id) constraint on product image table automatically", e);
+        }
+    }
+
+    private void migrateUserPhoneAndNicknameSchema() {
+        try {
+            jdbcTemplate.execute(
+                    """
+                    ALTER TABLE users
+                    DROP COLUMN IF EXISTS nickname
+                    """
+            );
+            log.info("Dropped users.nickname column if it existed");
+
+            jdbcTemplate.execute(
+                    """
+                    ALTER TABLE users
+                    ALTER COLUMN phone_number SET NOT NULL
+                    """
+            );
+            log.info("Set users.phone_number to NOT NULL");
+        } catch (Exception e) {
+            log.warn("Failed to migrate users schema for phone_number/nickname automatically", e);
         }
     }
 }

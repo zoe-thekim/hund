@@ -47,9 +47,6 @@ public class UserController {
                 if (updates.containsKey("name")) {
                     user.setName((String) updates.get("name"));
                 }
-                if (updates.containsKey("nickname")) {
-                    user.setNickname((String) updates.get("nickname"));
-                }
                 if (updates.containsKey("agreeToMarketing")) {
                     user.setAgreeToMarketing((Boolean) updates.get("agreeToMarketing"));
                 }

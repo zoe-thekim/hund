@@ -22,6 +22,8 @@
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/repository/ProductRepository.java
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/service/UserService.java
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/model/Product.java
+/Users/varm/dev/hund/backend/src/main/java/com/october/shop/security/JwtTokenProvider.java
+/Users/varm/dev/hund/backend/src/main/java/com/october/shop/security/JwtAuthenticationFilter.java
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/model/Order.java
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/config/SchemaMigrationRunner.java
 /Users/varm/dev/hund/backend/src/main/java/com/october/shop/controller/OrderController.java

@@ -26,14 +26,15 @@ public class UserService {
             throw new RuntimeException("이미 등록된 이메일입니다.");
         }
 
-        // 휴대폰 번호 중복 체크
-        if (userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
+        // 휴대폰 번호 중복 체크 (값이 있는 경우에만)
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()
+            && userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
             throw new RuntimeException("이미 등록된 휴대폰 번호입니다.");
         }
 
-        // 닉네임 중복 체크
-        if (userRepository.existsByNickname(user.getNickname())) {
-            throw new RuntimeException("이미 사용 중인 닉네임입니다.");
+        // 휴대폰 번호 필수 체크
+        if (user.getPhoneNumber() == null || user.getPhoneNumber().trim().isEmpty()) {
+            throw new RuntimeException("휴대폰 번호는 필수입니다.");
         }
 
         // 비밀번호 암호화
@@ -92,10 +93,6 @@ public class UserService {
         return userRepository.existsByPhoneNumber(phoneNumber);
     }
 
-    public boolean isNicknameExists(String nickname) {
-        return userRepository.existsByNickname(nickname);
-    }
-
     public User createOrUpdateOAuthUser(User.AuthProvider provider, String providerId,
                                       String email, String name) {
         Optional<User> existingUser = userRepository.findByProviderAndProviderId(provider, providerId);
@@ -112,7 +109,8 @@ public class UserService {
             newUser.setProviderId(providerId);
             newUser.setEmail(email);
             newUser.setName(name);
-            newUser.setNickname(email.split("@")[0]); // 임시 닉네임
+            // OAuth 가입 시 전화번호를 아직 받지 못한 경우를 대비한 기본값
+            newUser.setPhoneNumber("UNREGISTERED");
             newUser.setPhoneVerified(false);
             newUser.setEnabled(true);
             newUser.setCreatedAt(LocalDateTime.now());

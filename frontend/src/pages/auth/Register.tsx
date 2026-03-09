@@ -1,315 +1,658 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import AuthPage from '../../components/auth/AuthPage'
-import FormField from '../../components/auth/FormField'
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  createUser,
-  findUserByEmail,
-  getUserTableSchema,
-  updateUserOptionalProfile,
-} from '../../db/userTable'
-import useStore from '../../store/useStore'
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Check,
+  X,
+  Phone,
+  MapPin,
+  Calendar,
+} from "lucide-react";
+import { authAPI, getAuthTokenFromResponse } from "../../api";
+import useStore from "../../store/useStore";
 
-const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,20}$/
-
-const Register = () => {
-  const navigate = useNavigate()
-  const login = useStore((state) => state.login)
-
-  const [step, setStep] = useState(1)
-  const [requiredForm, setRequiredForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  })
-  const [optionalForm, setOptionalForm] = useState({
-    phoneNumber: '',
-    address: '',
-    birthDate: '',
-  })
-  const [createdUser, setCreatedUser] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
-
-  const isPasswordMatched = requiredForm.password.length > 0 && requiredForm.password === requiredForm.confirmPassword
-  const isPasswordCompared = requiredForm.confirmPassword.length > 0
-  const hasOptionalValue = useMemo(() => {
-    return Object.values(optionalForm).some((value) => value.trim() !== '')
-  }, [optionalForm])
-
-  const updateRequired = (field, value) => {
-    setRequiredForm((prev) => ({ ...prev, [field]: value }))
+// Daum 우편번호 서비스 타입 정의
+declare global {
+  interface Window {
+    daum: {
+      Postcode: new (options: {
+        oncomplete: (data: {
+          zonecode: string;
+          address: string;
+          addressType: string;
+          userSelectedType: string;
+          noSelected: string;
+          userLanguageType: string;
+          roadAddress: string;
+          jibunAddress: string;
+          buildingName: string;
+          apartment: string;
+          autoRoadAddress: string;
+          autoJibunAddress: string;
+          sido: string;
+          sigungu: string;
+          bname: string;
+          roadname: string;
+        }) => void;
+        onresize?: (size: { width: number; height: number }) => void;
+        width?: string;
+        height?: string;
+      }) => {
+        open: () => void;
+      };
+    };
   }
-
-  const updateOptional = (field, value) => {
-    setOptionalForm((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const validateStep1 = () => {
-    if (!requiredForm.name.trim()) {
-      return '이름을 입력해주세요.'
-    }
-
-    if (!requiredForm.email.trim()) {
-      return '이메일을 입력해주세요.'
-    }
-
-    if (!requiredForm.password || !requiredForm.confirmPassword) {
-      return '비밀번호와 비밀번호 확인을 입력해주세요.'
-    }
-
-    if (!PASSWORD_RULE.test(requiredForm.password)) {
-      return '비밀번호 규칙을 확인해주세요. (영문/숫자/특수문자 포함 8~20자)'
-    }
-
-    if (requiredForm.password !== requiredForm.confirmPassword) {
-      return '비밀번호가 일치하지 않습니다.'
-    }
-
-    if (findUserByEmail(requiredForm.email)) {
-      return '이미 가입된 이메일입니다.'
-    }
-
-    return ''
-  }
-
-  const handleCreateBaseAccount = (e) => {
-    e.preventDefault()
-    setErrorMessage('')
-
-    const validationError = validateStep1()
-    if (validationError) {
-      setErrorMessage(validationError)
-      return
-    }
-
-    try {
-      const user = createUser({
-        name: requiredForm.name.trim(),
-        email: requiredForm.email.trim(),
-        password: requiredForm.password,
-      })
-      setCreatedUser(user)
-      setStep(2)
-    } catch (error) {
-      if (error instanceof Error && error.message === 'DUPLICATE_EMAIL') {
-        setErrorMessage('이미 가입된 이메일입니다.')
-      } else {
-        setErrorMessage('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.')
-      }
-    }
-  }
-
-  const moveStep3 = () => {
-    setStep(3)
-  }
-
-  const handleSaveOptional = () => {
-    if (!createdUser) {
-      setErrorMessage('가입 정보가 유실되었습니다. 다시 시도해주세요.')
-      setStep(1)
-      return
-    }
-
-    if (!hasOptionalValue) {
-      moveStep3()
-      return
-    }
-
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      const updatedUser = updateUserOptionalProfile(createdUser.id, {
-        phoneNumber: optionalForm.phoneNumber.trim(),
-        address: optionalForm.address.trim(),
-        birthDate: optionalForm.birthDate,
-      })
-      setCreatedUser(updatedUser)
-      moveStep3()
-    } catch {
-      setErrorMessage('추가 정보 저장에 실패했습니다. 다시 시도해주세요.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleAutoLogin = () => {
-    if (!createdUser) {
-      setErrorMessage('사용자 정보가 없습니다. 로그인 화면으로 이동해주세요.')
-      return
-    }
-
-    login(createdUser, null, false)
-    navigate('/mypage')
-  }
-
-  const handleGoLogin = () => {
-    navigate('/login')
-  }
-
-  const stepLabels = {
-    1: '기본 정보',
-    2: '선택 정보',
-    3: '가입 완료',
-  }
-
-  return (
-    <AuthPage
-      title="회원가입"
-      subtitle={`현재 단계: ${stepLabels[step]}`}
-      footer={(
-        <p>
-          이미 계정이 있으신가요? <Link to="/login">로그인</Link>
-        </p>
-      )}
-    >
-      <div className="register-steps">
-        {[1, 2, 3].map((stepNumber) => (
-          <div key={stepNumber} className="register-step-track">
-            <div className={`register-step-dot ${step >= stepNumber ? 'is-active' : ''}`}>
-              {stepNumber}
-            </div>
-            {stepNumber < 3 && (
-              <div className={`register-step-line ${step > stepNumber ? 'is-active' : ''}`} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {step === 1 && (
-        <form onSubmit={handleCreateBaseAccount} className="auth-form">
-          <FormField label="이름" htmlFor="register-name">
-            <input
-              id="register-name"
-              type="text"
-              className="glass-input"
-              value={requiredForm.name}
-              onChange={(e) => updateRequired('name', e.target.value)}
-              placeholder="이름을 입력하세요"
-              required
-            />
-          </FormField>
-
-          <FormField label="이메일" htmlFor="register-email">
-            <input
-              id="register-email"
-              type="email"
-              className="glass-input"
-              value={requiredForm.email}
-              onChange={(e) => updateRequired('email', e.target.value)}
-              placeholder="이메일을 입력하세요"
-              required
-            />
-          </FormField>
-
-          <FormField label="비밀번호" htmlFor="register-password">
-            <input
-              id="register-password"
-              type="password"
-              className="glass-input"
-              value={requiredForm.password}
-              onChange={(e) => updateRequired('password', e.target.value)}
-              placeholder="영어, 숫자, 특수문자를 포함해 최소 8자리에서 20자리"
-              required
-            />
-          </FormField>
-
-          <FormField label="비밀번호 확인" htmlFor="register-confirm-password">
-            <input
-              id="register-confirm-password"
-              type="password"
-              className="glass-input"
-              value={requiredForm.confirmPassword}
-              onChange={(e) => updateRequired('confirmPassword', e.target.value)}
-              placeholder="비밀번호를 다시 입력하세요"
-              required
-            />
-          </FormField>
-
-          {isPasswordCompared ? (
-            <p className={`password-compare ${isPasswordMatched ? 'is-match' : 'is-mismatch'}`}>
-              {isPasswordMatched ? '비밀번호가 일치합니다.' : '비밀번호가 일치하지 않습니다.'}
-            </p>
-          ) : null}
-
-          {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
-
-          <button type="submit" className="neo-btn neo-btn-primary">
-            다음
-          </button>
-        </form>
-      )}
-
-      {step === 2 && (
-        <div className="auth-form">
-          <p className="step-helper">선택 입력입니다. 건너뛰어도 회원가입이 완료됩니다.</p>
-
-          <FormField label="주소" htmlFor="register-address">
-            <input
-              id="register-address"
-              type="text"
-              className="glass-input"
-              value={optionalForm.address}
-              onChange={(e) => updateOptional('address', e.target.value)}
-              placeholder="주소를 입력하세요 (선택)"
-            />
-          </FormField>
-
-          <FormField label="전화번호" htmlFor="register-phone">
-            <input
-              id="register-phone"
-              type="tel"
-              className="glass-input"
-              value={optionalForm.phoneNumber}
-              onChange={(e) => updateOptional('phoneNumber', e.target.value)}
-              placeholder="전화번호를 입력하세요 (선택)"
-            />
-          </FormField>
-
-          <FormField label="생일" htmlFor="register-birth-date">
-            <input
-              id="register-birth-date"
-              type="date"
-              className="glass-input"
-              value={optionalForm.birthDate}
-              onChange={(e) => updateOptional('birthDate', e.target.value)}
-            />
-          </FormField>
-
-          {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
-
-          <div className="register-actions">
-            <button type="button" className="neo-btn" onClick={moveStep3}>
-              Skip
-            </button>
-            <button type="button" className="neo-btn neo-btn-primary" onClick={handleSaveOptional} disabled={isLoading}>
-              {isLoading ? '저장 중...' : hasOptionalValue ? '저장' : '다음'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="auth-form register-complete">
-          <h2>환영합니다, {createdUser?.name ?? '회원'}님!</h2>
-          <p>회원가입이 완료되었습니다. 자동 로그인 하시겠습니까?</p>
-
-          <div className="register-actions">
-            <button type="button" className="neo-btn" onClick={handleGoLogin}>
-              아니오
-            </button>
-            <button type="button" className="neo-btn neo-btn-primary" onClick={handleAutoLogin}>
-              자동 로그인
-            </button>
-          </div>
-
-          <p className="db-schema-note">저장 테이블: {getUserTableSchema().table} (v{getUserTableSchema().version})</p>
-        </div>
-      )}
-    </AuthPage>
-  )
 }
 
-export default Register
+interface FormData {
+  // Step 1
+  name: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  // Step 2
+  phoneNumber: string;
+  postalCode: string;
+  address: string;
+  detailAddress: string;
+  // Step 3 - Terms Agreement
+  agreeToTerms: boolean;
+  agreeToPrivacy: boolean;
+  agreeToMarketing: boolean;
+}
+
+const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[a-zA-Z\d@$!%*?&]{8,16}$/;
+
+export default function Register() {
+  const navigate = useNavigate();
+  const login = useStore((state) => state.login);
+
+  const [step, setStep] = useState(1);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [formData, setFormData] = useState<FormData>({
+    name: "",
+    email: "",
+    password: "",
+    passwordConfirm: "",
+    phoneNumber: "",
+    postalCode: "",
+    address: "",
+    detailAddress: "",
+    agreeToTerms: false,
+    agreeToPrivacy: false,
+    agreeToMarketing: false,
+  });
+
+  const isPasswordValid = PASSWORD_REGEX.test(formData.password);
+  const passwordMatch = formData.password === formData.passwordConfirm && formData.password !== "";
+  const isStep1Valid = formData.name && formData.email && isPasswordValid && passwordMatch;
+  const isStep2Valid = Boolean(formData.phoneNumber.trim());
+  const isStep3Valid = formData.agreeToTerms && formData.agreeToPrivacy;
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const openDaumPostcode = () => {
+    new window.daum.Postcode({
+      oncomplete: function(data) {
+        setFormData((prev) => ({
+          ...prev,
+          postalCode: data.zonecode,
+          address: data.address,
+        }));
+      }
+    }).open();
+  };
+
+  const handleStep1Submit = (e: FormEvent) => {
+    console.log('Step 1 제출됨, isStep1Valid:', isStep1Valid);
+    e.preventDefault();
+    setErrorMessage("");
+
+    if (isStep1Valid) {
+      setStep(2);
+      console.log('Step 2로 이동');
+    } else {
+      console.log('Step 1 유효성 검사 실패');
+    }
+  };
+
+  const handleStep2Submit = () => {
+    console.log('Step 2 제출됨');
+    setErrorMessage("");
+    if (!isStep2Valid) {
+      setErrorMessage("전화번호는 필수입니다.");
+      return;
+    }
+    setStep(3);
+    console.log('Step 3으로 이동');
+  };
+
+  const handleStep3Submit = () => {
+    console.log('Step 3 제출됨, isStep3Valid:', isStep3Valid);
+    if (isStep3Valid) {
+      setStep(4);
+      console.log('Step 4로 이동');
+    } else {
+      console.log('Step 3 유효성 검사 실패');
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    console.log('handleFinalSubmit 호출됨!');
+    setErrorMessage("");
+    setLoading(true);
+
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      phoneNumber: formData.phoneNumber.trim(),
+      address: {
+        postalCode: formData.postalCode.trim() || null,
+        address: formData.address.trim() || null,
+        detailAddress: formData.detailAddress.trim() || null
+      },
+      agreeToTerms: formData.agreeToTerms,
+      agreeToPrivacy: formData.agreeToPrivacy,
+      agreeToMarketing: formData.agreeToMarketing,
+    };
+
+    console.log('회원가입 요청 데이터:', payload);
+
+    try {
+      const registerResponse = await authAPI.register(payload);
+      console.log('회원가입 응답:', registerResponse);
+
+      const registerData = registerResponse?.data ?? {};
+      let userToLogin = registerData.user ?? registerData.data ?? null;
+      let token = getAuthTokenFromResponse(registerResponse);
+
+      if (!token || !userToLogin) {
+        const loginResponse = await authAPI.login(formData.email.trim(), formData.password);
+        const loginData = loginResponse?.data ?? {};
+        userToLogin = loginData.user ?? {
+          email: formData.email.trim(),
+          name: formData.name.trim(),
+          phoneNumber: formData.phoneNumber.trim(),
+          address: {
+            postalCode: formData.postalCode.trim(),
+            address: formData.address.trim(),
+            detailAddress: formData.detailAddress.trim()
+          }
+        };
+        token = getAuthTokenFromResponse(loginResponse) ?? token;
+      }
+
+      if (!token) {
+        setErrorMessage("토큰을 받지 못해 로그인 처리가 완료되지 않았습니다.");
+        return;
+      }
+
+      login(userToLogin, token, true);
+      navigate("/mypage");
+    } catch (error) {
+      console.error('회원가입 에러:', error);
+      console.error('에러 응답:', error?.response?.data);
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.message || error?.response?.data;
+
+      if (status === 409) {
+        setErrorMessage("이미 가입된 이메일입니다.");
+        setStep(1);
+      } else if (status === 400) {
+        setErrorMessage(typeof errorMessage === 'string' ? errorMessage : "입력 정보를 확인해주세요.");
+      } else {
+        setErrorMessage("회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#F5F5F5] flex items-center justify-center px-5 py-8">
+      <div className="w-full max-w-md">
+        {/* Step Indicator */}
+        <div className="flex items-center justify-center gap-3 mb-12">
+          {[1, 2, 3, 4].map((stepNum) => (
+            <div key={stepNum} className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-medium text-sm transition-colors ${
+                  step >= stepNum
+                    ? "bg-black text-white"
+                    : "bg-white border border-black/20 text-black/40"
+                }`}
+              >
+                {step > stepNum ? <Check size={18} /> : stepNum}
+              </div>
+              {stepNum < 4 && (
+                <div
+                  className={`w-8 h-px transition-colors ${
+                    step > stepNum ? "bg-black" : "bg-black/20"
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Step 1: Basic Info */}
+        {step === 1 && (
+          <div>
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-light text-black mb-2">
+                Create Account
+              </h1>
+              <p className="text-sm text-black/50">
+                Start your hund journey
+              </p>
+            </div>
+
+            <form onSubmit={handleStep1Submit} className="flex flex-col gap-5 mb-8">
+              {/* Name */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="John Doe"
+                  className="w-full h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                  required
+                />
+              </div>
+
+              {/* Email */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 pointer-events-none"
+                  />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="you@example.com"
+                    className="w-full h-12 pl-9 pr-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 pointer-events-none"
+                  />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="English, numbers & symbols (8-16 chars)"
+                    className="w-full h-12 pl-9 pr-10 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {formData.password && (
+                  <div className="flex items-center gap-2 mt-1">
+                    {isPasswordValid ? (
+                      <div className="flex items-center gap-1 text-xs text-green-700">
+                        <Check size={14} />
+                        Valid password
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-red-700">
+                        <X size={14} />
+                        Must have English, number & symbol (8-16)
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Password Confirm */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 pointer-events-none"
+                  />
+                  <input
+                    type={showPasswordConfirm ? "text" : "password"}
+                    name="passwordConfirm"
+                    value={formData.passwordConfirm}
+                    onChange={handleInputChange}
+                    placeholder="••••••••"
+                    className="w-full h-12 pl-9 pr-10 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordConfirm((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/60 transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPasswordConfirm ? (
+                      <EyeOff size={16} />
+                    ) : (
+                      <Eye size={16} />
+                    )}
+                  </button>
+                </div>
+                {formData.passwordConfirm && (
+                  <div className="flex items-center gap-2 mt-1">
+                    {passwordMatch ? (
+                      <div className="flex items-center gap-1 text-xs text-green-700">
+                        <Check size={14} />
+                        Passwords match
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-red-700">
+                        <X size={14} />
+                        Passwords don't match
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={!isStep1Valid}
+                className="h-12 bg-black text-white text-sm font-medium tracking-wide uppercase hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-4"
+              >
+                Next
+              </button>
+              {errorMessage ? (
+                <p className="text-xs text-center text-red-700">{errorMessage}</p>
+              ) : null}
+            </form>
+
+            <p className="text-center text-sm text-black/60">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="text-black font-medium hover:opacity-70 transition-opacity"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+        )}
+
+        {/* Step 2: Additional Info */}
+        {step === 2 && (
+          <div>
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-light text-black mb-2">
+                Additional Information
+              </h1>
+              <p className="text-sm text-black/50">
+                Phone number is required
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-5 mb-8">
+              {/* Phone */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 pointer-events-none"
+                  />
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleInputChange}
+                    placeholder="010-1234-5678"
+                    className="w-full h-12 pl-9 pr-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-black tracking-wide uppercase">
+                  Address
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleInputChange}
+                    placeholder="우편번호"
+                    className="w-1/3 h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    onClick={openDaumPostcode}
+                    className="flex-1 h-12 border border-black text-black text-sm font-medium hover:bg-black hover:text-white transition-colors"
+                  >
+                    주소 검색
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="기본 주소"
+                  className="w-full h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                  readOnly
+                />
+                <input
+                  type="text"
+                  name="detailAddress"
+                  value={formData.detailAddress}
+                  onChange={handleInputChange}
+                  placeholder="상세 주소"
+                  className="w-full h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 h-12 border border-black text-black text-sm font-medium tracking-wide uppercase hover:bg-black hover:text-white transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleStep2Submit}
+                disabled={!isStep2Valid}
+                className="flex-1 h-12 bg-black text-white text-sm font-medium tracking-wide uppercase hover:bg-black/80 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+            {errorMessage ? (
+              <p className="text-xs text-center text-red-700 mt-4">{errorMessage}</p>
+            ) : null}
+          </div>
+        )}
+
+        {/* Step 3: Terms Agreement */}
+        {step === 3 && (
+          <div>
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-light text-black mb-2">
+                Terms & Conditions
+              </h1>
+              <p className="text-sm text-black/50">
+                Please agree to continue
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4 mb-8">
+              {/* Terms of Service */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="agreeToTerms"
+                  name="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onChange={handleInputChange}
+                  className="mt-1 w-4 h-4 accent-black"
+                />
+                <label htmlFor="agreeToTerms" className="text-sm text-black/80">
+                  <span className="text-red-500">*</span> 이용약관에 동의합니다
+                </label>
+              </div>
+
+              {/* Privacy Policy */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="agreeToPrivacy"
+                  name="agreeToPrivacy"
+                  checked={formData.agreeToPrivacy}
+                  onChange={handleInputChange}
+                  className="mt-1 w-4 h-4 accent-black"
+                />
+                <label htmlFor="agreeToPrivacy" className="text-sm text-black/80">
+                  <span className="text-red-500">*</span> 개인정보 처리방침에 동의합니다
+                </label>
+              </div>
+
+              {/* Marketing Agreement */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="agreeToMarketing"
+                  name="agreeToMarketing"
+                  checked={formData.agreeToMarketing}
+                  onChange={handleInputChange}
+                  className="mt-1 w-4 h-4 accent-black"
+                />
+                <label htmlFor="agreeToMarketing" className="text-sm text-black/80">
+                  마케팅 정보 수신에 동의합니다 (선택)
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="flex-1 h-12 border border-black text-black text-sm font-medium tracking-wide uppercase hover:bg-black hover:text-white transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleStep3Submit}
+                disabled={!isStep3Valid}
+                className="flex-1 h-12 bg-black text-white text-sm font-medium tracking-wide uppercase hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Agree & Continue
+              </button>
+            </div>
+            {errorMessage ? (
+              <p className="text-xs text-center text-red-700 mt-4">{errorMessage}</p>
+            ) : null}
+          </div>
+        )}
+
+        {/* Step 4: Completion */}
+        {step === 4 && (
+          <div>
+            <div className="text-center mb-12">
+              <div className="w-16 h-16 rounded-full bg-black text-white flex items-center justify-center mx-auto mb-6">
+                <Check size={32} />
+              </div>
+              <h1 className="text-3xl font-light text-black mb-3">
+                Welcome to PAWHAUS!
+              </h1>
+              <p className="text-sm text-black/60">
+                Your account has been successfully created. Let's get started!
+              </p>
+              <p className="text-sm text-red-600 mt-4">
+                DEBUG: loading={loading.toString()}, step={step}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 mb-8">
+              <button
+                onClick={() => {
+                  console.log('Step 4 버튼 클릭됨!');
+                  handleFinalSubmit();
+                }}
+                disabled={loading}
+                className="h-12 bg-red-600 text-white text-sm font-medium tracking-wide uppercase hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ zIndex: 999, position: 'relative' }}
+              >
+                {loading ? "Signing in..." : "CLICK ME - Sign In & Continue"}
+              </button>
+
+              <button
+                onClick={() => {
+                  console.log('테스트 버튼 클릭됨!');
+                }}
+                className="h-12 bg-blue-600 text-white text-sm font-medium"
+              >
+                TEST BUTTON
+              </button>
+
+              <Link
+                to="/"
+                className="h-12 border border-black text-black text-sm font-medium tracking-wide uppercase hover:bg-black hover:text-white transition-colors flex items-center justify-center"
+              >
+                Go to Home
+              </Link>
+            </div>
+            {errorMessage ? (
+              <p className="text-xs text-center text-red-700 mb-4">{errorMessage}</p>
+            ) : null}
+
+            <p className="text-center text-xs text-black/40">
+              You can sign in anytime with your email and password
+            </p>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

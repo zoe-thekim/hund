@@ -2,7 +2,7 @@ const USER_DB_KEY = 'october_user_table_v1'
 
 const USER_TABLE_SCHEMA = {
   table: 'users',
-  version: 1,
+  version: 2,
   columns: {
     id: 'string',
     name: 'string',
@@ -11,6 +11,9 @@ const USER_TABLE_SCHEMA = {
     phoneNumber: 'string|null',
     address: 'string|null',
     birthDate: 'string|null(YYYY-MM-DD)',
+    emailVerified: 'boolean',
+    emailVerificationCode: 'string|null',
+    emailVerificationSentAt: 'string|null(ISO datetime)',
     createdAt: 'string(ISO datetime)',
     updatedAt: 'string(ISO datetime)'
   }
@@ -56,6 +59,7 @@ const sanitizeUser = (user) => ({
   phoneNumber: user.phoneNumber ?? null,
   address: user.address ?? null,
   birthDate: user.birthDate ?? null,
+  emailVerified: user.emailVerified ?? false,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 })
@@ -89,6 +93,9 @@ export const createUser = ({ name, email, password }) => {
     phoneNumber: null,
     address: null,
     birthDate: null,
+    emailVerified: false,
+    emailVerificationCode: null,
+    emailVerificationSentAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -130,4 +137,82 @@ export const updateUserOptionalProfile = (userId, { phoneNumber, address, birthD
 
   writeStore(store)
   return sanitizeUser(store.users[userIndex])
+}
+
+export const updateUserPassword = (userId, currentPassword, newPassword) => {
+  const store = readStore()
+  const userIndex = store.users.findIndex((user) => user.id === userId)
+  if (userIndex < 0) {
+    throw new Error('USER_NOT_FOUND')
+  }
+
+  const user = store.users[userIndex]
+  if (user.password !== currentPassword) {
+    throw new Error('INVALID_CURRENT_PASSWORD')
+  }
+
+  store.users[userIndex] = {
+    ...user,
+    password: newPassword,
+    updatedAt: new Date().toISOString(),
+  }
+
+  writeStore(store)
+  return sanitizeUser(store.users[userIndex])
+}
+
+export const generateEmailVerificationCode = (userId) => {
+  const store = readStore()
+  const userIndex = store.users.findIndex((user) => user.id === userId)
+  if (userIndex < 0) {
+    throw new Error('USER_NOT_FOUND')
+  }
+
+  const verificationCode = Math.random().toString().slice(2, 8)
+  store.users[userIndex] = {
+    ...store.users[userIndex],
+    emailVerificationCode: verificationCode,
+    emailVerificationSentAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  writeStore(store)
+  return verificationCode
+}
+
+export const verifyEmailCode = (userId, code) => {
+  const store = readStore()
+  const userIndex = store.users.findIndex((user) => user.id === userId)
+  if (userIndex < 0) {
+    throw new Error('USER_NOT_FOUND')
+  }
+
+  const user = store.users[userIndex]
+  if (user.emailVerificationCode !== code) {
+    throw new Error('INVALID_CODE')
+  }
+
+  const sentAt = new Date(user.emailVerificationSentAt)
+  const now = new Date()
+  const diffMinutes = (now - sentAt) / (1000 * 60)
+
+  if (diffMinutes > 10) {
+    throw new Error('CODE_EXPIRED')
+  }
+
+  store.users[userIndex] = {
+    ...user,
+    emailVerified: true,
+    emailVerificationCode: null,
+    emailVerificationSentAt: null,
+    updatedAt: new Date().toISOString(),
+  }
+
+  writeStore(store)
+  return sanitizeUser(store.users[userIndex])
+}
+
+export const isEmailVerified = (userId) => {
+  const user = findUserById(userId)
+  return user?.emailVerified || false
 }

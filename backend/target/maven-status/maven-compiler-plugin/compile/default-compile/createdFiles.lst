@@ -5,6 +5,7 @@ com/october/shop/model/Product.class
 com/october/shop/model/User.class
 com/october/shop/model/OrderItem$ItemStatus.class
 com/october/shop/config/CorsConfig.class
+com/october/shop/security/JwtTokenProvider.class
 com/october/shop/service/OrderService.class
 com/october/shop/dto/UserResponse.class
 com/october/shop/ShopApplication.class
@@ -29,6 +30,7 @@ com/october/shop/repository/InventoryHistoryRepository.class
 com/october/shop/model/Order.class
 com/october/shop/repository/OrderItemRepository.class
 com/october/shop/repository/OrderRepository.class
+com/october/shop/security/JwtAuthenticationFilter.class
 com/october/shop/model/CartItem.class
 com/october/shop/model/InventoryHistory$TransactionType.class
 com/october/shop/model/Order$OrderStatus.class

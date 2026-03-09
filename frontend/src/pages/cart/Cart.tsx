@@ -1,15 +1,33 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import useStore from '../../store/useStore'
 import CartItem from '../../components/CartItem'
 
 const Cart = () => {
-  const { cart, getTotalPrice, clearCart } = useStore()
+  const navigate = useNavigate()
+  const { cart, getTotalPrice, clearCart, authUser, isLoggedIn } = useStore()
   const totalPrice = getTotalPrice()
 
   const handleClearCart = () => {
     if (confirm('장바구니를 비우시겠습니까?')) {
       clearCart()
     }
+  }
+
+  const handleCheckout = () => {
+    if (!isLoggedIn) {
+      alert('구매를 위해서는 로그인이 필요합니다.')
+      navigate('/login')
+      return
+    }
+
+    if (!authUser?.id || !authUser.emailVerified) {
+      alert('구매를 위해서는 이메일 인증이 필요합니다. 마이페이지에서 이메일을 인증해주세요.')
+      navigate('/mypage')
+      return
+    }
+
+    alert('주문이 완료되었습니다!')
+    clearCart()
   }
 
   if (cart.length === 0) {
@@ -97,7 +115,10 @@ const Cart = () => {
                 </div>
               )}
 
-              <button className="w-full bg-october-orange text-white py-4 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-colors duration-200 mb-3">
+              <button
+                onClick={handleCheckout}
+                className="w-full bg-october-orange text-white py-4 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-colors duration-200 mb-3"
+              >
                 주문하기
               </button>
 
