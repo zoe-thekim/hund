@@ -14,7 +14,7 @@ import {
 import { authAPI, getAuthTokenFromResponse } from "../../api";
 import useStore from "../../store/useStore";
 
-// Daum 우편번호 서비스 타입 정의
+// Daum postcode service type definition
 declare global {
   interface Window {
     daum: {
@@ -116,41 +116,41 @@ export default function Register() {
   };
 
   const handleStep1Submit = (e: FormEvent) => {
-    console.log('Step 1 제출됨, isStep1Valid:', isStep1Valid);
+    console.log("Step 1 submitted, isStep1Valid:", isStep1Valid);
     e.preventDefault();
     setErrorMessage("");
 
     if (isStep1Valid) {
       setStep(2);
-      console.log('Step 2로 이동');
+      console.log("Moving to step 2");
     } else {
-      console.log('Step 1 유효성 검사 실패');
+      console.log("Step 1 validation failed");
     }
   };
 
   const handleStep2Submit = () => {
-    console.log('Step 2 제출됨');
+    console.log("Step 2 submitted");
     setErrorMessage("");
     if (!isStep2Valid) {
-      setErrorMessage("전화번호는 필수입니다.");
+      setErrorMessage("Phone number is required.");
       return;
     }
     setStep(3);
-    console.log('Step 3으로 이동');
+    console.log("Moving to step 3");
   };
 
   const handleStep3Submit = () => {
-    console.log('Step 3 제출됨, isStep3Valid:', isStep3Valid);
+    console.log("Step 3 submitted, isStep3Valid:", isStep3Valid);
     if (isStep3Valid) {
       setStep(4);
-      console.log('Step 4로 이동');
+      console.log("Moving to step 4");
     } else {
-      console.log('Step 3 유효성 검사 실패');
+      console.log("Step 3 validation failed");
     }
   };
 
   const handleFinalSubmit = async () => {
-    console.log('handleFinalSubmit 호출됨!');
+    console.log("handleFinalSubmit called");
     setErrorMessage("");
     setLoading(true);
 
@@ -169,11 +169,11 @@ export default function Register() {
       agreeToMarketing: formData.agreeToMarketing,
     };
 
-    console.log('회원가입 요청 데이터:', payload);
+    console.log("Registration request payload:", payload);
 
     try {
       const registerResponse = await authAPI.register(payload);
-      console.log('회원가입 응답:', registerResponse);
+      console.log("Registration response:", registerResponse);
 
       const registerData = registerResponse?.data ?? {};
       let userToLogin = registerData.user ?? registerData.data ?? null;
@@ -196,25 +196,25 @@ export default function Register() {
       }
 
       if (!token) {
-        setErrorMessage("토큰을 받지 못해 로그인 처리가 완료되지 않았습니다.");
+        setErrorMessage("Could not complete sign in because the session token was not issued.");
         return;
       }
 
       login(userToLogin, token, true);
       navigate("/mypage");
     } catch (error) {
-      console.error('회원가입 에러:', error);
-      console.error('에러 응답:', error?.response?.data);
+      console.error('Registration error:', error);
+      console.error('Error response:', error?.response?.data);
       const status = error?.response?.status;
       const errorMessage = error?.response?.data?.message || error?.response?.data;
 
       if (status === 409) {
-        setErrorMessage("이미 가입된 이메일입니다.");
+        setErrorMessage("This email is already registered.");
         setStep(1);
       } else if (status === 400) {
-        setErrorMessage(typeof errorMessage === 'string' ? errorMessage : "입력 정보를 확인해주세요.");
+        setErrorMessage(typeof errorMessage === 'string' ? errorMessage : "Please check your input details.");
       } else {
-        setErrorMessage("회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        setErrorMessage("Registration failed. Please try again later.");
       }
     } finally {
       setLoading(false);
@@ -463,7 +463,7 @@ export default function Register() {
                     name="postalCode"
                     value={formData.postalCode}
                     onChange={handleInputChange}
-                    placeholder="우편번호"
+                    placeholder="Postal code"
                     className="w-1/3 h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
                     readOnly
                   />
@@ -472,7 +472,7 @@ export default function Register() {
                     onClick={openDaumPostcode}
                     className="flex-1 h-12 border border-black text-black text-sm font-medium hover:bg-black hover:text-white transition-colors"
                   >
-                    주소 검색
+                    Search Address
                   </button>
                 </div>
                 <input
@@ -480,7 +480,7 @@ export default function Register() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  placeholder="기본 주소"
+                  placeholder="Street address"
                   className="w-full h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
                   readOnly
                 />
@@ -489,7 +489,7 @@ export default function Register() {
                   name="detailAddress"
                   value={formData.detailAddress}
                   onChange={handleInputChange}
-                  placeholder="상세 주소"
+                  placeholder="Unit / apartment / landmark"
                   className="w-full h-12 px-4 bg-white border border-black/20 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-black transition-colors"
                 />
               </div>
@@ -540,7 +540,7 @@ export default function Register() {
                   className="mt-1 w-4 h-4 accent-black"
                 />
                 <label htmlFor="agreeToTerms" className="text-sm text-black/80">
-                  <span className="text-red-500">*</span> 이용약관에 동의합니다
+                  <span className="text-red-500">*</span> I agree to the Terms of Service
                 </label>
               </div>
 
@@ -555,7 +555,7 @@ export default function Register() {
                   className="mt-1 w-4 h-4 accent-black"
                 />
                 <label htmlFor="agreeToPrivacy" className="text-sm text-black/80">
-                  <span className="text-red-500">*</span> 개인정보 처리방침에 동의합니다
+                  <span className="text-red-500">*</span> I agree to the Privacy Policy
                 </label>
               </div>
 
@@ -570,7 +570,7 @@ export default function Register() {
                   className="mt-1 w-4 h-4 accent-black"
                 />
                 <label htmlFor="agreeToMarketing" className="text-sm text-black/80">
-                  마케팅 정보 수신에 동의합니다 (선택)
+                  Receive marketing emails (optional)
                 </label>
               </div>
             </div>
@@ -617,7 +617,7 @@ export default function Register() {
             <div className="flex flex-col gap-3 mb-8">
               <button
                 onClick={() => {
-                  console.log('Step 4 버튼 클릭됨!');
+                  console.log("Step 4 button clicked");
                   handleFinalSubmit();
                 }}
                 disabled={loading}
@@ -629,7 +629,7 @@ export default function Register() {
 
               <button
                 onClick={() => {
-                  console.log('테스트 버튼 클릭됨!');
+                  console.log("Test button clicked");
                 }}
                 className="h-12 bg-blue-600 text-white text-sm font-medium"
               >

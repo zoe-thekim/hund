@@ -1,7 +1,5 @@
-import { useRef, useState, useEffect, type ChangeEvent } from "react";
+import { useRef, useState, useEffect, type ChangeEvent, type MouseEvent } from "react";
 import {
-  Plus,
-  Trash2,
   Eye,
   EyeOff,
   LogOut,
@@ -10,77 +8,31 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import useStore from "../../store/useStore";
-import { authAPI } from "../../api";
-
-type Tab = "Profile" | "My Orders" | "Address" | "Account" | "Setting";
-
-interface Address {
-  id: string;
-  name: string;
-  phone: string;
-  postalCode: string;
-  address: string;
-  detail: string;
-  isDefault: boolean;
-}
-
-// Daum 우편번호 서비스 타입 정의
-declare global {
-  interface Window {
-    daum: {
-      Postcode: new (options: {
-        oncomplete: (data: {
-          zonecode: string;
-          address: string;
-          addressType: string;
-          userSelectedType: string;
-          noSelected: string;
-          userLanguageType: string;
-          roadAddress: string;
-          jibunAddress: string;
-          buildingName: string;
-          apartment: string;
-          autoRoadAddress: string;
-          autoJibunAddress: string;
-          sido: string;
-          sigungu: string;
-          bname: string;
-          roadname: string;
-        }) => void;
-        onresize?: (size: { width: number; height: number }) => void;
-        width?: string;
-        height?: string;
-      }) => {
-        open: () => void;
-      };
-    };
-  }
-}
-
-interface Order {
-  id: string;
-  date: string;
-  items: string;
-  total: string;
-  status: "pending" | "shipped" | "delivered";
-}
-
-interface UserInfo {
-  name: string;
-  email: string;
-  phone: string;
-  birthday: string;
-}
+import { authAPI, orderAPI } from "../../api";
+import { normalizeProfileImageFromApi } from "../../api";
+import type { Tab, Address, Order, UserInfo, AuthUser, DbOrder } from "./myPageTypes";
+import {
+  getDateString,
+  toPriceText,
+  formatOrderStatus,
+  toPhoneFromUser,
+  getProfileImageFromUser,
+  getMarketingAgreement,
+  getProfileFromUser,
+  normalizeMyOrder,
+  toAddressList,
+} from "./myPageMappers";
 
 export default function MyPage() {
   const navigate = useNavigate();
-  const authUser = useStore((state) => state.authUser);
+  const authUser = useStore((state) => state.authUser) as AuthUser | null;
   const authToken = useStore((state) => state.authToken);
   const logout = useStore((state) => state.logout);
   const updateAuthUser = useStore((state) => state.updateAuthUser);
 
   const [activeTab, setActiveTab] = useState<Tab>("Profile");
   const [profileImage, setProfileImage] = useState("/placeholder.svg");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<UserInfo>({
@@ -89,58 +41,172 @@ export default function MyPage() {
     phone: "",
     birthday: "",
   });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [dataError, setDataError] = useState("");
+  const [marketingEnabled, setMarketingEnabled] = useState(false);
+  const myPageRequestId = useRef(0);
+
+  const syncFromAuthUser = (nextUser: AuthUser | null) => {
+    setProfile(getProfileFromUser(nextUser));
+    setProfileImage(getProfileImageFromUser(nextUser));
+    setMarketingEnabled(getMarketingAgreement(nextUser));
+    setIsUploadingAvatar(false);
+  };
 
   useEffect(() => {
-    if (!authUser) {
-      return;
-    }
-
-    const phoneRaw = authUser.phoneNumber ?? authUser.phone ?? "";
-    const normalizedPhone = typeof phoneRaw === "string" && !phoneRaw.includes("@") ? phoneRaw : "";
-
-    setProfile({
-      name: authUser.name ?? "",
-      email: authUser.email ?? "",
-      phone: normalizedPhone,
-      birthday: authUser.birthDate ?? authUser.birthday ?? "",
-    });
+    syncFromAuthUser(authUser);
   }, [authUser]);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadMyPageData = async () => {
       if (!authToken) {
         return;
       }
 
+      const requestId = ++myPageRequestId.current;
+      setIsDataLoading(true);
+      setDataError("");
+
       try {
         const response = await authAPI.me(authToken);
         const data = response?.data ?? {};
-        const user = data.user ?? data.data ?? data;
-        if (!user || typeof user !== "object") {
+        const latestUser = data.user ?? data.data ?? data;
+        if (!latestUser || typeof latestUser !== "object") {
+          throw new Error("invalid_profile");
+        }
+
+        if (requestId !== myPageRequestId.current) {
           return;
         }
 
-        const nextUser = {
-          ...authUser,
-          ...user,
+        const nextUser: AuthUser = {
+          ...(authUser ?? {}),
+          ...latestUser,
         };
         updateAuthUser(nextUser);
+        syncFromAuthUser(nextUser);
+
+        if (requestId !== myPageRequestId.current) {
+          return;
+        }
+
+        let orderRows: DbOrder[] = [];
+        const nextUserId = String(nextUser.id ?? "").trim();
+        if (nextUserId) {
+          const orderResponse = await orderAPI.getByUserId(nextUserId, authToken);
+          if (requestId !== myPageRequestId.current) {
+            return;
+          }
+          orderRows = Array.isArray(orderResponse?.data) ? orderResponse.data : [];
+        }
+
+        if (requestId !== myPageRequestId.current) {
+          return;
+        }
+
+        const normalizedOrders = orderRows
+          .map((row) => normalizeMyOrder(row as DbOrder))
+          .filter((row): row is Order => Boolean(row));
+
+        setOrders(normalizedOrders);
+        setAddresses(toAddressList(nextUser, orderRows));
       } catch {
-        // Keep current auth state if profile API is unavailable.
+        if (requestId === myPageRequestId.current) {
+          setDataError("Unable to load your page data.");
+        }
+      } finally {
+        if (requestId === myPageRequestId.current) {
+          setIsDataLoading(false);
+        }
       }
     };
 
-    fetchProfile();
-  }, [authToken]);
+    loadMyPageData();
+  }, [authToken, authUser?.id]);
 
-  const handleProfileImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setProfileImage(event.target?.result as string);
+  const handleMarketingSettingToggle = async (nextValue: boolean) => {
+    if (!authToken || !authUser) {
+      return;
+    }
+
+    const previousValue = marketingEnabled;
+    const optimisticUser: AuthUser = {
+      ...authUser,
+      agreeToMarketing: nextValue,
+      agree_to_marketing: nextValue,
+    };
+
+    // Optimistic update
+    updateAuthUser(optimisticUser);
+    syncFromAuthUser(optimisticUser);
+
+    try {
+      const response = await authAPI.updateProfile(
+        { agreeToMarketing: nextValue },
+        authToken
+      );
+      const data = response?.data ?? {};
+      const latestUser = data.user ?? data.data ?? data;
+
+      if (latestUser && typeof latestUser === "object") {
+        const newAuthUser: AuthUser = {
+          ...authUser,
+          ...(latestUser as AuthUser),
+        };
+        updateAuthUser(newAuthUser);
+        syncFromAuthUser(newAuthUser);
+      }
+    } catch {
+      // Roll back to the previous value if update fails
+      const rollbackUser: AuthUser = {
+        ...authUser,
+        agreeToMarketing: previousValue,
+        agree_to_marketing: previousValue,
       };
-      reader.readAsDataURL(file);
+      updateAuthUser(rollbackUser);
+      syncFromAuthUser(rollbackUser);
+    }
+  };
+
+  const handleProfileImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !authUser || !authToken) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const preview = event.target?.result as string;
+      setProfileImage(preview);
+    };
+    reader.readAsDataURL(file);
+
+    setIsUploadingAvatar(true);
+    try {
+      const response = await authAPI.uploadProfileImage(file, authToken);
+      const data = response?.data ?? {};
+      const uploadedUrl = normalizeProfileImageFromApi(
+        data.profileImageUrl ?? data.user?.profileImageUrl ?? data.data?.profileImageUrl
+      );
+      const userFromResponse = data.user ?? data.data;
+
+      if (typeof uploadedUrl === "string" && uploadedUrl.trim()) {
+        setProfileImage(uploadedUrl);
+      }
+
+      const updatedAuthUser = {
+        ...authUser,
+        ...(userFromResponse ?? {}),
+        ...(typeof uploadedUrl === "string" ? { profileImageUrl: uploadedUrl } : {}),
+      };
+      updateAuthUser(updatedAuthUser);
+      syncFromAuthUser(updatedAuthUser);
+    } catch {
+      // Keep local preview on upload failure and prompt save when needed.
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -149,30 +215,38 @@ export default function MyPage() {
   };
 
   const handleProfileSave = async (next: UserInfo) => {
-    setProfile(next);
     if (!authUser) {
       return;
     }
 
-    const payload = {
+    const payload: Partial<AuthUser> = {
       name: next.name,
       phoneNumber: next.phone.trim(),
       birthDate: next.birthday || null,
     };
 
     try {
-      const response = await authAPI.updateProfile(payload, authToken, authUser.id);
+      const response = await authAPI.updateProfile(payload, authToken);
       const data = response?.data ?? {};
       const updatedUser = data.user ?? data.data ?? data;
-      updateAuthUser({
+
+      // Update authUser with latest data from server
+      const newAuthUser = {
         ...authUser,
         ...updatedUser,
-      });
+      };
+      updateAuthUser(newAuthUser);
+
+      // Sync UI state immediately
+      syncFromAuthUser(newAuthUser);
     } catch {
-      updateAuthUser({
+      // Keep optimistic update in UI if API call fails
+      const fallbackUser = {
         ...authUser,
         ...payload,
-      });
+      };
+      updateAuthUser(fallbackUser);
+      syncFromAuthUser(fallbackUser);
     }
   };
 
@@ -187,8 +261,13 @@ export default function MyPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center gap-8 mb-12">
           <div className="relative group flex-shrink-0">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-white border border-black/10">
-              <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
             </div>
+            {isUploadingAvatar ? (
+              <p className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[11px] text-black/60 bg-white/95 px-2 py-0.5 rounded-full mt-1">
+                Uploading...
+              </p>
+            ) : null}
             <button
               onClick={triggerFileInput}
               className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -232,10 +311,27 @@ export default function MyPage() {
 
         <div>
           {activeTab === "Profile" && <ProfileTab profile={profile} onSave={handleProfileSave} />}
-          {activeTab === "My Orders" && <MyOrdersTab />}
-          {activeTab === "Address" && <AddressTab />}
-          {activeTab === "Account" && <AccountTab onLogout={handleLogout} userId={authUser?.id ?? ""} token={authToken} />}
-          {activeTab === "Setting" && <SettingTab />}
+          {activeTab === "My Orders" && (
+            <MyOrdersTab
+              orders={orders}
+              isLoading={isDataLoading}
+              errorMessage={dataError}
+            />
+          )}
+          {activeTab === "Address" && (
+            <AddressTab
+              addresses={addresses}
+              isLoading={isDataLoading}
+              errorMessage={dataError}
+            />
+          )}
+          {activeTab === "Account" && <AccountTab onLogout={handleLogout} userId={String(authUser?.id ?? "")} token={authToken} />}
+          {activeTab === "Setting" && (
+            <SettingTab
+              marketingEnabled={marketingEnabled}
+              onMarketingSettingToggle={handleMarketingSettingToggle}
+            />
+          )}
         </div>
       </div>
     </main>
@@ -258,7 +354,7 @@ function ProfileTab({ profile, onSave }: { profile: UserInfo; onSave: (next: Use
   const handleSave = async () => {
     setErrorMessage("");
     if (!formData.phone.trim()) {
-      setErrorMessage("전화번호는 필수입니다.");
+      setErrorMessage("Phone number is required.");
       return;
     }
     await onSave(formData);
@@ -273,7 +369,7 @@ function ProfileTab({ profile, onSave }: { profile: UserInfo; onSave: (next: Use
     if (Number.isNaN(date.getTime())) {
       return value;
     }
-    return date.toLocaleDateString("ko-KR", {
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -365,49 +461,37 @@ function ProfileTab({ profile, onSave }: { profile: UserInfo; onSave: (next: Use
   );
 }
 
-function MyOrdersTab() {
-  const [orders] = useState<Order[]>([
-    {
-      id: "ORD-001",
-      date: "2026-02-28",
-      items: "Striped Dog Sweater (M)",
-      total: "₩20,000",
-      status: "delivered",
-    },
-    {
-      id: "ORD-002",
-      date: "2026-02-15",
-      items: "Cozy Winter Coat (L), Classic Collar (2)",
-      total: "₩47,000",
-      status: "delivered",
-    },
-    {
-      id: "ORD-003",
-      date: "2026-02-10",
-      items: "Luxury Pet Harness (M)",
-      total: "₩28,000",
-      status: "shipped",
-    },
-    {
-      id: "ORD-004",
-      date: "2026-01-30",
-      items: "Striped Dog Sweater (S)",
-      total: "₩20,000",
-      status: "pending",
-    },
-  ]);
+function MyOrdersTab({
+  orders,
+  isLoading,
+  errorMessage,
+}: {
+  orders: Order[];
+  isLoading: boolean;
+  errorMessage: string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="bg-white border border-black/10 p-8 text-center">
+          <p className="text-sm text-black/60">Loading order history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="max-w-4xl">
+        <div className="bg-white border border-red-200 p-8 text-center">
+          <p className="text-sm text-red-700">{errorMessage}</p>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return "Delivered";
-      case "shipped":
-        return "In Transit";
-      case "pending":
-        return "Processing";
-      default:
-        return status;
-    }
+    return formatOrderStatus(status);
   };
 
   return (
@@ -421,13 +505,17 @@ function MyOrdersTab() {
           <div key={order.id} className="bg-white border border-black/10 p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
-                <h3 className="text-sm font-medium text-black mb-1">{order.id}</h3>
+                <h3 className="text-sm font-medium text-black mb-1">
+                  {order.orderNumber} <span className="text-black/60">({order.id})</span>
+                </h3>
                 <p className="text-xs text-black/50">
-                  {new Date(order.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {order.date
+                    ? new Date(order.date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "-"}
                 </p>
               </div>
               <span className="text-xs font-medium uppercase tracking-wide text-black/60">
@@ -452,77 +540,44 @@ function MyOrdersTab() {
   );
 }
 
-function AddressTab() {
-  const [addresses, setAddresses] = useState<Address[]>([
-    {
-      id: "1",
-      name: "Home",
-      phone: "010-1234-5678",
-      postalCode: "06000",
-      address: "서울 강남구 테헤란로 123",
-      detail: "123동 456호",
-      isDefault: true,
-    },
-    {
-      id: "2",
-      name: "Office",
-      phone: "02-999-9999",
-      postalCode: "04500",
-      address: "서울 중구 을지로 456",
-      detail: "789빌딩 10층",
-      isDefault: false,
-    },
-  ]);
+function AddressTab({
+  addresses,
+  isLoading,
+  errorMessage,
+}: {
+  addresses: Address[];
+  isLoading: boolean;
+  errorMessage: string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="bg-white border border-black/10 p-8 text-center">
+            <p className="text-sm text-black/60">Loading address information...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    postalCode: "",
-    address: "",
-    detail: "",
-  });
-
-  const openDaumPostcode = () => {
-    new window.daum.Postcode({
-      oncomplete: function(data) {
-        setFormData((prev) => ({
-          ...prev,
-          postalCode: data.zonecode,
-          address: data.address,
-        }));
-      }
-    }).open();
-  };
-
-  const handleAddAddress = () => {
-    if (formData.name && formData.phone && formData.address && formData.detail) {
-      setAddresses((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          ...formData,
-          isDefault: false,
-        },
-      ]);
-      setFormData({ name: "", phone: "", postalCode: "", address: "", detail: "" });
-      setShowForm(false);
-    }
-  };
-
-  const handleDeleteAddress = (id: string) => {
-    setAddresses((prev) => prev.filter((addr) => addr.id !== id));
-  };
-
-  const handleSetDefault = (id: string) => {
-    setAddresses((prev) => prev.map((addr) => ({ ...addr, isDefault: addr.id === id })));
-  };
+  if (errorMessage) {
+    return (
+      <div className="max-w-4xl">
+        <div className="bg-white border border-red-200 p-8 text-center">
+          <p className="text-sm text-red-700">{errorMessage}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl">
-      {!showForm ? (
-        <div className="space-y-4">
-          {addresses.map((addr) => (
+      <div className="space-y-4">
+        {addresses.length === 0 ? (
+          <div className="bg-white border border-black/10 p-8 text-center">
+            <p className="text-sm text-black/60">No saved addresses.</p>
+          </div>
+        ) : (
+          addresses.map((addr) => (
             <div key={addr.id} className="bg-white border border-black/10 p-6">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -531,124 +586,17 @@ function AddressTab() {
                     <span className="inline-block text-xs font-medium text-black/60 mb-3">Default Address</span>
                   )}
                 </div>
-                <button
-                  onClick={() => handleDeleteAddress(addr.id)}
-                  className="text-black/40 hover:text-black transition-colors"
-                  aria-label="Delete address"
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
 
-              <div className="text-sm text-black/70 space-y-1 mb-4">
+              <div className="text-sm text-black/70 space-y-1">
                 <p>({addr.postalCode}) {addr.address}</p>
                 <p>{addr.detail}</p>
                 <p>{addr.phone}</p>
               </div>
-
-              {!addr.isDefault && (
-                <button
-                  onClick={() => handleSetDefault(addr.id)}
-                  className="text-xs font-medium text-black/70 hover:text-black underline underline-offset-2 transition-colors"
-                >
-                  Set as Default
-                </button>
-              )}
             </div>
-          ))}
-
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full py-4 border border-black/20 text-sm font-medium text-black hover:bg-black/5 transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus size={16} />
-            Add New Address
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white border border-black/10 p-6">
-          <h3 className="text-sm font-medium text-black mb-6">Add New Address</h3>
-
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-xs font-medium text-black/70 uppercase tracking-wide mb-2">Address Name</label>
-              <input
-                type="text"
-                placeholder="e.g., Home, Office"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-black/10 text-sm focus:outline-none focus:border-black transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black/70 uppercase tracking-wide mb-2">Phone Number</label>
-              <input
-                type="tel"
-                placeholder="010-0000-0000"
-                value={formData.phone}
-                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-3 py-2 border border-black/10 text-sm focus:outline-none focus:border-black transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black/70 uppercase tracking-wide mb-2">Address</label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="우편번호"
-                  value={formData.postalCode}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, postalCode: e.target.value }))}
-                  className="w-1/3 px-3 py-2 border border-black/10 text-sm focus:outline-none focus:border-black transition-colors"
-                  readOnly
-                />
-                <button
-                  type="button"
-                  onClick={openDaumPostcode}
-                  className="flex-1 py-2 border border-black text-black text-sm font-medium hover:bg-black hover:text-white transition-colors"
-                >
-                  주소 검색
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="기본 주소"
-                value={formData.address}
-                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
-                className="w-full px-3 py-2 border border-black/10 text-sm focus:outline-none focus:border-black transition-colors"
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black/70 uppercase tracking-wide mb-2">Detailed Address</label>
-              <input
-                type="text"
-                placeholder="Street address and number"
-                value={formData.detail}
-                onChange={(e) => setFormData((prev) => ({ ...prev, detail: e.target.value }))}
-                className="w-full px-3 py-2 border border-black/10 text-sm focus:outline-none focus:border-black transition-colors"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={handleAddAddress}
-              className="flex-1 py-2 bg-black text-white text-sm font-medium hover:bg-black/80 transition-colors"
-            >
-              Add Address
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="flex-1 py-2 border border-black/20 text-sm font-medium text-black hover:bg-black/5 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -667,22 +615,22 @@ function AccountTab({ onLogout, userId, token }: { onLogout: () => void; userId:
     setPasswordMessage("");
 
     if (!passwords.current || !passwords.new || !passwords.confirm) {
-      setPasswordMessage("모든 비밀번호 필드를 입력해주세요.");
+      setPasswordMessage("Please fill in all password fields.");
       return;
     }
 
     if (passwords.new !== passwords.confirm) {
-      setPasswordMessage("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
+      setPasswordMessage("New password and confirm password do not match.");
       return;
     }
 
     if (passwords.new.length < 8) {
-      setPasswordMessage("새 비밀번호는 8자 이상이어야 합니다.");
+      setPasswordMessage("New password must be at least 8 characters.");
       return;
     }
 
     if (!userId) {
-      setPasswordMessage("현재 계정은 비밀번호 변경을 지원하지 않습니다.");
+      setPasswordMessage("Password changes are not supported for this account.");
       return;
     }
 
@@ -690,17 +638,17 @@ function AccountTab({ onLogout, userId, token }: { onLogout: () => void; userId:
       await authAPI.changePassword({
         currentPassword: passwords.current,
         newPassword: passwords.new,
-      }, token, userId);
-      setPasswordMessage("비밀번호가 변경되었습니다.");
+      }, token);
+      setPasswordMessage("Password has been changed.");
       setShowPasswordForm(false);
       setPasswords({ current: "", new: "", confirm: "" });
-    } catch (error) {
+    } catch (error: any) {
       const status = error?.response?.status;
       if (status === 400 || status === 401) {
-        setPasswordMessage("현재 비밀번호가 올바르지 않습니다.");
+        setPasswordMessage("Current password is incorrect.");
         return;
       }
-      setPasswordMessage("비밀번호 변경에 실패했습니다.");
+      setPasswordMessage("Failed to change password.");
     }
   };
 
@@ -768,7 +716,7 @@ function AccountTab({ onLogout, userId, token }: { onLogout: () => void; userId:
             </button>
 
             {passwordMessage && (
-              <p className={`text-sm ${passwordMessage.includes("변경") ? "text-green-700" : "text-red-700"}`}>
+              <p className={`text-sm ${passwordMessage.includes("changed") || passwordMessage.includes("Changed") ? "text-green-700" : "text-red-700"}`}>
                 {passwordMessage}
               </p>
             )}
@@ -789,9 +737,16 @@ function AccountTab({ onLogout, userId, token }: { onLogout: () => void; userId:
   );
 }
 
-function SettingTab() {
+function SettingTab({
+  marketingEnabled,
+  onMarketingSettingToggle,
+}: {
+  marketingEnabled: boolean;
+  onMarketingSettingToggle: (nextValue: boolean) => void | Promise<void>;
+}) {
+  const [isMarketingConfirmOpen, setIsMarketingConfirmOpen] = useState(false);
+  // Newsletter toggle is local-only state (no server sync).
   const [settings, setSettings] = useState({
-    marketing: true,
     newsletter: false,
   });
 
@@ -799,8 +754,61 @@ function SettingTab() {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleMarketingToggle = async () => {
+    const nextValue = !marketingEnabled;
+    if (nextValue) {
+      setIsMarketingConfirmOpen(true);
+      return;
+    }
+    await onMarketingSettingToggle(nextValue);
+  };
+
+  const confirmMarketingEnable = async () => {
+    setIsMarketingConfirmOpen(false);
+    await onMarketingSettingToggle(true);
+  };
+
+  const handleMarketingToggleCancel = () => {
+    setIsMarketingConfirmOpen(false);
+  };
+
+  const handleMarketingBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      setIsMarketingConfirmOpen(false);
+    }
+  };
+
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="relative max-w-2xl space-y-4">
+      {isMarketingConfirmOpen ? (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={handleMarketingBackdropClick}
+        >
+          <div className="w-full max-w-md bg-white border border-black/10 rounded-3xl shadow-2xl p-6">
+            <h3 className="text-base font-medium text-black mb-2">Marketing Consent</h3>
+            <p className="text-sm text-black/70 leading-relaxed">
+              Would you like to receive marketing emails from hund about new products and offers?
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={handleMarketingToggleCancel}
+                className="px-4 py-2 border border-black/20 text-black text-sm font-medium hover:border-black transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMarketingEnable}
+                className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-black/80 transition-colors"
+              >
+                Enable Marketing
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="bg-white border border-black/10 p-6">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
@@ -808,14 +816,14 @@ function SettingTab() {
             <p className="text-xs text-black/60">Receive updates about new products and special offers</p>
           </div>
           <button
-            onClick={() => handleToggleSetting("marketing")}
+            onClick={handleMarketingToggle}
             className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${
-              settings.marketing ? "bg-black" : "bg-black/20"
+              marketingEnabled ? "bg-black" : "bg-black/20"
             }`}
           >
             <span
               className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                settings.marketing ? "translate-x-4" : ""
+                marketingEnabled ? "translate-x-4" : ""
               }`}
             />
           </button>

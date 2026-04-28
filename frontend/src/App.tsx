@@ -10,6 +10,10 @@ import About from './pages/about/About'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import MyPage from './pages/user/MyPage'
+import Checkout from './pages/checkout/Checkout'
+import OrderConfirmation from './pages/checkout/OrderConfirmation'
+import PaymentResult from './pages/checkout/PaymentResult'
+import Wishlist from './pages/wishlist/Wishlist'
 import useStore from './store/useStore'
 
 function App() {
@@ -36,6 +40,10 @@ function App() {
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/checkout" element={isLoggedIn ? <Checkout /> : <Navigate to="/login" replace />} />
+            <Route path="/checkout/payment-result" element={isLoggedIn ? <PaymentResult /> : <Navigate to="/login" replace />} />
+            <Route path="/order-confirmation" element={isLoggedIn ? <OrderConfirmation /> : <Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/mypage" element={isLoggedIn ? <MyPage /> : <Navigate to="/login" replace />} />

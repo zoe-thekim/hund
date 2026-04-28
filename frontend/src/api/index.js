@@ -66,30 +66,75 @@ const api = axios.create({
   timeout: 5000,
 })
 
-const withAuthHeader = (token) => (
-  token
-    ? { headers: { Authorization: `Bearer ${token}` } }
-    : {}
-)
+const normalizeProfileImageUrl = (value) => {
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return trimmed
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  if (trimmed.startsWith('/uploads/')) {
+    const apiBase = api.defaults.baseURL ?? 'http://localhost:8080/api'
+    try {
+      const normalizedOrigin = new URL(apiBase).origin
+      return `${normalizedOrigin}${trimmed}`
+    } catch {
+      return trimmed
+    }
+  }
+
+  return trimmed
+}
+
+const normalizeAuthToken = (token) => {
+  if (typeof token !== 'string') {
+    return null
+  }
+
+  const trimmed = token.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  return /^Bearer\s+/i.test(trimmed)
+    ? trimmed.replace(/^Bearer\s+/i, '').trim()
+    : trimmed
+}
+
+const withAuthHeader = (token) => {
+  const normalized = normalizeAuthToken(token)
+  if (!normalized) {
+    return {}
+  }
+
+  return { headers: { Authorization: `Bearer ${normalized}` } }
+}
 
 const requestFirstSuccessful = async (requests) => {
   let lastError = null
 
-  console.log('requestFirstSuccessful 시작, 요청 개수:', requests.length);
+  console.log('requestFirstSuccessful: starting batch, total requests:', requests.length);
 
   for (const request of requests) {
     try {
-      console.log('요청 시도 중...');
+      console.log('Attempting request...');
       const result = await request();
-      console.log('요청 성공:', result);
+      console.log('Request succeeded:', result);
       return result;
     } catch (error) {
-      console.log('요청 실패:', error);
+      console.log('Request failed:', error);
       lastError = error
     }
   }
 
-  console.error('모든 요청 실패, 마지막 에러:', lastError);
+  console.error('All requests failed. Last error:', lastError);
   throw lastError ?? new Error('API_REQUEST_FAILED')
 }
 
@@ -108,39 +153,32 @@ export const cartAPI = {
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (payload) => {
-    console.log('authAPI.register 호출됨:', payload);
-    console.log('단순화된 API 호출: POST /auth/register');
+    console.log('authAPI.register called with:', payload);
+    console.log('Simplified API call: POST /auth/register');
     return api.post('/auth/register', payload);
   },
-  me: (token) => requestFirstSuccessful([
-    () => api.get('/users/me', withAuthHeader(token)),
-    () => api.get('/auth/me', withAuthHeader(token)),
-    () => api.get('/me', withAuthHeader(token)),
-  ]),
-  updateProfile: (payload, token, userId = null) => requestFirstSuccessful([
-    () => api.patch('/users/me', payload, withAuthHeader(token)),
-    () => api.put('/users/me', payload, withAuthHeader(token)),
-    () => api.patch('/auth/me', payload, withAuthHeader(token)),
-    () => api.put('/auth/me', payload, withAuthHeader(token)),
-    ...(userId
-      ? [
-        () => api.patch(`/users/${userId}`, payload, withAuthHeader(token)),
-        () => api.put(`/users/${userId}`, payload, withAuthHeader(token)),
-      ]
-      : []),
-  ]),
-  changePassword: (payload, token, userId = null) => requestFirstSuccessful([
-    () => api.patch('/auth/password', payload, withAuthHeader(token)),
-    () => api.post('/auth/change-password', payload, withAuthHeader(token)),
-    () => api.patch('/users/me/password', payload, withAuthHeader(token)),
-    () => api.post('/users/me/password', payload, withAuthHeader(token)),
-    ...(userId
-      ? [
-        () => api.patch(`/users/${userId}/password`, payload, withAuthHeader(token)),
-        () => api.post(`/users/${userId}/password`, payload, withAuthHeader(token)),
-      ]
-      : []),
-  ]),
+  me: (token) => api.get('/users/me', withAuthHeader(token)),
+  updateProfile: (payload, token) => api.put('/users/me', payload, withAuthHeader(token)),
+  changePassword: (payload, token) => api.post('/users/me/change-password', payload, withAuthHeader(token)),
+  uploadProfileImage: (file, token) => {
+    const data = new FormData()
+    data.append('image', file)
+    return api.post('/users/me/avatar', data, withAuthHeader(token))
+  },
 }
+
+export const orderAPI = {
+  getByUserId: (userId, token) => api.get(`/orders/user/${userId}`, withAuthHeader(token)),
+  getById: (orderId, token) => api.get(`/orders/${orderId}`, withAuthHeader(token)),
+  getByNumber: (orderNumber, token) => api.get(`/orders/number/${encodeURIComponent(orderNumber)}`, withAuthHeader(token)),
+  createOrder: (orderData, token) => api.post('/orders/create', orderData, withAuthHeader(token)),
+  addItemToOrder: (orderId, itemData, token) => api.post(`/orders/${orderId}/items`, itemData, withAuthHeader(token)),
+  confirmOrder: (orderId, token) => api.post(`/orders/${orderId}/confirm`, {}, withAuthHeader(token)),
+  confirmOrderByNumber: (orderNumber, payload, token) =>
+    api.post(`/orders/number/${encodeURIComponent(orderNumber)}/confirm`, payload, withAuthHeader(token)),
+  cancelOrderById: (orderId, payload, token) => api.post(`/orders/${orderId}/cancel`, payload, withAuthHeader(token)),
+}
+
+export const normalizeProfileImageFromApi = normalizeProfileImageUrl
 
 export default api

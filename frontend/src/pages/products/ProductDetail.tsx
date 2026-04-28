@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import useStore from '../../store/useStore'
 import { getProductImages } from '../../utils/productImages'
 import { getProductWithImages } from '../../services/productService'
-import { ShoppingBag, Heart, X } from "lucide-react";
+import { ShoppingBag, Heart, X, CreditCard } from "lucide-react"
+import { handleImageError } from '../../utils/imageUtils'
 
 type Product = {
   id: string
@@ -21,13 +22,16 @@ const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
 
 const ProductDetail = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
   const addToCart = useStore((state) => state.addToCart)
+  const addToWishlist = useStore((state) => state.addToWishlist)
+  const removeFromWishlist = useStore((state) => state.removeFromWishlist)
+  const isInWishlist = useStore((state) => state.isInWishlist)
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const [wishlisted, setWishlisted] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
@@ -69,12 +73,45 @@ const ProductDetail = () => {
     setActiveImage(0)
   }, [product?.id, sizes])
 
+  const wishlisted = useMemo(() => {
+    return product ? isInWishlist(product.id) : false
+  }, [product, isInWishlist])
+
   const handleAddToCart = () => {
     if (!product || !selectedSize) {
       return
     }
 
     addToCart(product, selectedSize, quantity)
+  }
+
+  const handleBuyNow = () => {
+    if (!product || !selectedSize) {
+      return
+    }
+
+    // Add to cart first, then navigate to checkout
+    addToCart(product, selectedSize, quantity)
+    navigate('/checkout', {
+      state: {
+        directPurchase: true,
+        items: [{
+          ...product,
+          size: selectedSize,
+          quantity
+        }]
+      }
+    })
+  }
+
+  const handleToggleWishlist = () => {
+    if (!product) return
+
+    if (wishlisted) {
+      removeFromWishlist(product.id)
+    } else {
+      addToWishlist(product)
+    }
   }
   if (loading) {
     return (
@@ -98,9 +135,9 @@ const ProductDetail = () => {
       <main className="min-h-screen bg-[#F5F5F5] pt-20">
         <div className="max-w-screen-xl mx-auto px-5 md:px-10 py-16 text-center">
           <h1 className="text-3xl font-semibold mb-4">PRODUCT NOT FOUND</h1>
-          <p className="text-black/60 mb-8">요청하신 제품을 찾을 수 없습니다.</p>
+          <p className="text-black/60 mb-8">We couldn't find the requested product.</p>
           <Link to="/products" className="inline-flex h-12 px-6 items-center bg-black text-white text-sm tracking-wide">
-            PRODUCTS로 이동
+            Shop All Products
           </Link>
         </div>
       </main>
@@ -129,6 +166,7 @@ const ProductDetail = () => {
                   src={images[activeImage]}
                   alt={`${product.name} ${activeImage + 1}`}
                   className="w-full h-full object-cover"
+                  onError={handleImageError}
                 />
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -140,7 +178,8 @@ const ProductDetail = () => {
                   >
                     <img src={img}
                          alt={`${product.name} thumb ${i + 1}`}
-                         className="w-full h-full object-cover" />
+                         className="w-full h-full object-cover"
+                         onError={handleImageError} />
                   </button>
                 ))}
               </div>
@@ -156,6 +195,7 @@ const ProductDetail = () => {
                     src={img}
                     alt={`${product.name} ${i + 1}`}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    onError={handleImageError}
                   />
                 </div>
               ))}
@@ -169,7 +209,7 @@ const ProductDetail = () => {
             </h1>
 
             <p className="text-sm text-black/60 leading-relaxed mb-6">
-              {product.description || product.detailedDescription || '상품 설명이 준비 중입니다.'}
+              {product.description || product.detailedDescription || 'Product description coming soon.'}
             </p>
 
             <div className="mb-6">
@@ -224,24 +264,36 @@ const ProductDetail = () => {
             </div>
 
             {/* CTA buttons */}
-            <div className="flex gap-3">
-              <button className="flex-1 h-12 bg-black text-white text-sm font-medium tracking-wide uppercase hover:bg-black/80 transition-colors flex items-center justify-center gap-2">
-                <ShoppingBag size={16} />
-                Add to Cart
-              </button>
-              <button
-                  onClick={() => setWishlisted((w) => !w)}
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 h-12 bg-black text-white text-sm font-medium tracking-wide uppercase hover:bg-black/80 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag size={16} />
+                  Add to Cart
+                </button>
+                <button
+                  onClick={handleToggleWishlist}
                   className={`w-12 h-12 border flex items-center justify-center transition-colors ${
-                      wishlisted
-                          ? "bg-black text-white border-black"
-                          : "border-black/30 text-black hover:border-black"
+                    wishlisted
+                      ? "bg-black text-white border-black"
+                      : "border-black/30 text-black hover:border-black"
                   }`}
                   aria-label="Wishlist"
-              >
-                <Heart
+                >
+                  <Heart
                     size={16}
                     fill={wishlisted ? "currentColor" : "none"}
-                />
+                  />
+                </button>
+              </div>
+              <button
+                onClick={handleBuyNow}
+                className="w-full h-12 border-2 border-black text-black text-sm font-medium tracking-wide uppercase hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <CreditCard size={16} />
+                Buy Now
               </button>
             </div>
 
@@ -278,6 +330,7 @@ const ProductDetail = () => {
                   src={images[selectedImageIndex]}
                   alt={`${product.name} ${selectedImageIndex + 1}`}
                   className="w-full h-full object-contain"
+                  onError={handleImageError}
               />
               <button
                   onClick={() => setSelectedImageIndex(null)}

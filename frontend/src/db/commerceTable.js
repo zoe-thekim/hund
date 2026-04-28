@@ -62,10 +62,10 @@ const COMMERCE_SCHEMA = {
 }
 
 const seedProducts = [
-  { id: 'p-001', name: '코지 니트 스웨터', price: 45000, category: 'spring-summer' },
-  { id: 'p-002', name: '레인보우 레인코트', price: 38000, category: 'spring-summer' },
-  { id: 'p-003', name: '윈터 패딩 자켓', price: 89000, category: 'fall-winter' },
-  { id: 'p-004', name: '체크 셔츠', price: 32000, category: 'spring-summer' },
+  { id: 'p-001', name: 'Cozy Knit Sweater', price: 45000, category: 'spring-summer' },
+  { id: 'p-002', name: 'Rainbow Raincoat', price: 38000, category: 'spring-summer' },
+  { id: 'p-003', name: 'Winter Puffer Jacket', price: 89000, category: 'fall-winter' },
+  { id: 'p-004', name: 'Checked Shirt', price: 32000, category: 'spring-summer' },
 ]
 
 const createEmptyStore = () => ({
@@ -109,18 +109,18 @@ const writeStore = (store) => {
 const nowIso = () => new Date().toISOString()
 const todayDate = () => new Date().toISOString().slice(0, 10)
 
-const statusToLabel = (status) => {
+  const statusToLabel = (status) => {
   switch (status) {
     case 'done':
-      return '배송 완료'
+      return 'Delivered'
     case 'shipping':
-      return '배송 중'
+      return 'In Transit'
     case 'paid':
-      return '결제 완료'
+      return 'Paid'
     case 'pending':
-      return '주문 접수'
+      return 'Order Placed'
     case 'cancelled':
-      return '주문 취소'
+      return 'Cancelled'
     default:
       return status
   }
@@ -258,7 +258,7 @@ export const getOrdersByUserId = (userId) => {
         const product = store.products.find((p) => p.id === item.productId)
         return {
           productId: item.productId,
-          name: product?.name ?? '알 수 없는 상품',
+          name: product?.name ?? 'Unknown Product',
           price: item.unitPrice,
           quantity: item.quantity,
         }

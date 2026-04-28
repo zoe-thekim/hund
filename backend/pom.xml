@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
     <groupId>com.october</groupId>
-    <artifactId>shop</artifactId>
+    <artifactId>hund</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>october-shop</name>
     <description>October Pet Clothing Shop</description>

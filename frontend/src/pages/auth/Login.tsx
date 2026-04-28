@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { authAPI, getAuthTokenFromResponse } from '../../api'
-import AuthPage from '../../components/auth/AuthPage'
-import FormField from '../../components/auth/FormField'
+import { authAPI, getAuthTokenFromResponse, normalizeProfileImageFromApi } from '../../api'
 import useStore from '../../store/useStore'
-import {Mail, Lock, LockOpen, EyeOff, Eye} from "lucide-react";
+import {Mail, Lock, EyeOff, Eye} from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate()
@@ -19,7 +17,7 @@ const Login = () => {
 
   const performLogin = (user, token) => {
     if (!token) {
-      setErrorMessage('로그인 처리 중 토큰을 받지 못했습니다.')
+      setErrorMessage("We couldn't get your login token.")
       return
     }
 
@@ -33,21 +31,28 @@ const Login = () => {
     setIsLoading(true)
 
     try {
-      const response = await authAPI.login(email, password)
+      const normalizedEmail = email.trim()
+      const normalizedPassword = password.trim()
+
+      const response = await authAPI.login(normalizedEmail, normalizedPassword)
       const data = response?.data ?? {}
-      const user = data.user ?? {
-        email,
-        name: email.split('@')[0],
+      const userFromServer = data.user ?? {
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0],
+      }
+      const user = {
+        ...userFromServer,
+        profileImageUrl: normalizeProfileImageFromApi(userFromServer.profileImageUrl),
       }
       const token = getAuthTokenFromResponse(response)
 
       performLogin(user, token)
     } catch (error) {
       const status = error?.response?.status
-      if (status === 401) {
-        setErrorMessage('이메일 또는 비밀번호를 확인해주세요.')
+      if (status === 400 || status === 401) {
+        setErrorMessage("Please check your email or password.")
       } else {
-        setErrorMessage('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.')
+        setErrorMessage("Sign in failed. Please try again later.")
       }
     } finally {
       setIsLoading(false)

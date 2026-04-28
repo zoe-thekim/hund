@@ -78,11 +78,11 @@ const Home = () => {
             categoryVisible ? 'fade-in-up visible' : 'fade-in-up'
           }`}
         >
-          <div className="text-center mb-32">
+            <div className="text-center mb-32">
             <div className="text-micro-label mb-6">OUR COLLECTIONS</div>
-            <h2 className="text-section-title mb-12">계절의 변화와<br />함께하는 스타일링</h2>
+            <h2 className="text-section-title mb-12">Style for Every<br />Seasonal Shift</h2>
             <p className="text-body-large max-w-lg mx-auto">
-              각기 다른 매력을 발견하세요
+              Discover a look for every moment
             </p>
           </div>
 
@@ -91,7 +91,7 @@ const Home = () => {
               <div className="mb-8">
                 <div className="text-micro-label mb-4">01</div>
                 <h3 className="text-product-title mb-6">SPRING / SUMMER</h3>
-                <p className="text-body">가벼운 소재와 시원한 스타일</p>
+                <p className="text-body">Lightweight fabrics for a breezy look</p>
               </div>
             </Link>
 
@@ -99,7 +99,7 @@ const Home = () => {
               <div className="mb-8">
                 <div className="text-micro-label mb-4">02</div>
                 <h3 className="text-product-title mb-6">FALL / WINTER</h3>
-                <p className="text-body">포근함과 따뜻함을 담은 디자인</p>
+                <p className="text-body">Cozy silhouettes with added warmth</p>
               </div>
             </Link>
 
@@ -107,7 +107,7 @@ const Home = () => {
               <div className="mb-8">
                 <div className="text-micro-label mb-4">03</div>
                 <h3 className="text-product-title mb-6">ACCESSORIES</h3>
-                <p className="text-body">완성도를 높이는 특별한 소품</p>
+                <p className="text-body">Accessories that finish the look</p>
               </div>
             </Link>
           </div>
@@ -124,9 +124,9 @@ const Home = () => {
         >
           <div className="text-center mb-32">
             <div className="text-micro-label mb-6">BEST SELLERS</div>
-            <h2 className="text-section-title mb-12">고객들이 가장<br />사랑하는 아이템들</h2>
+            <h2 className="text-section-title mb-12">Customer Favorites<br />You Need Now</h2>
             <p className="text-body-large max-w-lg mx-auto">
-              검증된 품질과 스타일을 만나보세요
+              Explore our top picks for quality comfort and standout styling
             </p>
           </div>
 

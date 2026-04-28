@@ -4,37 +4,30 @@ import CartItem from '../../components/CartItem'
 
 const Cart = () => {
   const navigate = useNavigate()
-  const { cart, getTotalPrice, clearCart, authUser, isLoggedIn } = useStore()
+  const { cart, getTotalPrice, clearCart, isLoggedIn } = useStore()
   const totalPrice = getTotalPrice()
 
   const handleClearCart = () => {
-    if (confirm('장바구니를 비우시겠습니까?')) {
+    if (confirm('Clear all items from your cart?')) {
       clearCart()
     }
   }
 
   const handleCheckout = () => {
     if (!isLoggedIn) {
-      alert('구매를 위해서는 로그인이 필요합니다.')
+      alert('You need to sign in to checkout.')
       navigate('/login')
       return
     }
 
-    if (!authUser?.id || !authUser.emailVerified) {
-      alert('구매를 위해서는 이메일 인증이 필요합니다. 마이페이지에서 이메일을 인증해주세요.')
-      navigate('/mypage')
-      return
-    }
-
-    alert('주문이 완료되었습니다!')
-    clearCart()
+    navigate('/checkout')
   }
 
   if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-october-bg py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-8">장바구니</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-8">Shopping Bag</h1>
 
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-6 flex items-center justify-center">
@@ -42,15 +35,15 @@ const Cart = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13v6a2 2 0 002 2h6a2 2 0 002-2v-6" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">장바구니가 비어있습니다</h2>
-            <p className="text-gray-600 mb-8">원하는 상품을 담아보세요</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+            <p className="text-gray-600 mb-8">Add items to start your order</p>
 
             <div className="flex justify-center">
               <Link
                 to="/products"
                 className="bg-october-orange text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-colors duration-200"
               >
-                상품 둘러보기
+                Browse Products
               </Link>
             </div>
           </div>
@@ -63,12 +56,12 @@ const Cart = () => {
     <div className="min-h-screen bg-october-bg py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">장바구니</h1>
+          <h1 className="text-4xl font-bold text-gray-900">Shopping Bag</h1>
           <button
             onClick={handleClearCart}
             className="text-gray-500 hover:text-red-500 transition-colors duration-200"
           >
-            전체 삭제
+            Clear All
           </button>
         </div>
 
@@ -81,24 +74,24 @@ const Cart = () => {
 
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">주문 요약</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
 
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-gray-600">
-                  <span>상품 수량</span>
-                  <span>{cart.reduce((total, item) => total + item.quantity, 0)}개</span>
+                  <span>Total items</span>
+                  <span>{cart.reduce((total, item) => total + item.quantity, 0)} items</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>상품 금액</span>
+                  <span>Items subtotal</span>
                   <span>₩{totalPrice.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>배송비</span>
-                  <span>{totalPrice >= 50000 ? '무료' : '₩3,000'}</span>
+                  <span>Shipping</span>
+                  <span>{totalPrice >= 50000 ? 'FREE' : '₩3,000'}</span>
                 </div>
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-xl font-bold text-gray-900">
-                    <span>총 결제금액</span>
+                    <span>Order total</span>
                     <span className="text-october-orange">
                       ₩{(totalPrice + (totalPrice >= 50000 ? 0 : 3000)).toLocaleString()}
                     </span>
@@ -108,26 +101,20 @@ const Cart = () => {
 
               {totalPrice < 50000 && (
                 <div className="bg-october-bg p-4 rounded-lg mb-6">
-                  <p className="text-sm text-gray-700 text-center">
-                    ₩{(50000 - totalPrice).toLocaleString()} 더 담으면
-                    <span className="font-semibold text-october-orange"> 무료배송</span>
+                <p className="text-sm text-gray-700 text-center">
+                    Add ₩{(50000 - totalPrice).toLocaleString()} more for
+                    <span className="font-semibold text-october-orange"> free shipping</span>
                   </p>
                 </div>
               )}
 
               <button
                 onClick={handleCheckout}
-                className="w-full bg-october-orange text-white py-4 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-colors duration-200 mb-3"
+                className="w-full bg-october-orange text-white py-4 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-colors duration-200"
+                aria-label="Proceed to checkout"
               >
-                주문하기
+                Checkout
               </button>
-
-              <Link
-                to="/products"
-                className="block w-full text-center border-2 border-gray-300 text-gray-700 py-4 rounded-lg text-lg font-semibold hover:border-october-orange hover:text-october-orange transition-colors duration-200"
-              >
-                계속 쇼핑하기
-              </Link>
             </div>
           </div>
         </div>

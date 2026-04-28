@@ -1,7 +1,7 @@
 const BASE_URL = 'http://localhost:8080/api';
 
 export const orderService = {
-  // 사용자별 주문 내역 조회
+  // Get orders for a user
   async getUserOrders(userId) {
     try {
       const response = await fetch(`${BASE_URL}/orders/user/${userId}`, {
@@ -12,17 +12,17 @@ export const orderService = {
       });
 
       if (!response.ok) {
-        throw new Error('주문 내역 조회에 실패했습니다.');
+        throw new Error('Failed to load order history.');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('주문 내역 조회 오류:', error);
+      console.error('Order history fetch failed:', error);
       throw error;
     }
   },
 
-  // 주문 상세 조회
+  // Fetch order detail
   async getOrderDetail(orderId) {
     try {
       const response = await fetch(`${BASE_URL}/orders/${orderId}`, {
@@ -33,17 +33,17 @@ export const orderService = {
       });
 
       if (!response.ok) {
-        throw new Error('주문 상세 조회에 실패했습니다.');
+        throw new Error('Failed to load order details.');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('주문 상세 조회 오류:', error);
+      console.error('Order detail fetch failed:', error);
       throw error;
     }
   },
 
-  // 주문 번호로 주문 조회
+  // Fetch order by order number
   async getOrderByNumber(orderNumber) {
     try {
       const response = await fetch(`${BASE_URL}/orders/number/${orderNumber}`, {
@@ -54,17 +54,17 @@ export const orderService = {
       });
 
       if (!response.ok) {
-        throw new Error('주문 조회에 실패했습니다.');
+        throw new Error('Failed to find order.');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('주문 번호로 조회 오류:', error);
+      console.error('Order lookup by number failed:', error);
       throw error;
     }
   },
 
-  // 주문 취소
+  // Cancel order
   async cancelOrder(orderId, reason) {
     try {
       const response = await fetch(`${BASE_URL}/orders/${orderId}/cancel`, {
@@ -76,45 +76,45 @@ export const orderService = {
       });
 
       if (!response.ok) {
-        throw new Error('주문 취소에 실패했습니다.');
+        throw new Error('Order cancellation failed.');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('주문 취소 오류:', error);
+      console.error('Order cancellation failed:', error);
       throw error;
     }
   },
 };
 
-// 주문 상태 한글 매핑
+// Order status labels
 export const ORDER_STATUS_MAP = {
-  PENDING: '주문 대기',
-  CONFIRMED: '주문 확인',
-  PROCESSING: '상품 준비 중',
-  SHIPPED: '배송 중',
-  DELIVERED: '배송 완료',
-  CANCELLED: '주문 취소',
-  REFUNDED: '환불 완료'
+  PENDING: 'Processing',
+  CONFIRMED: 'Order confirmed',
+  PROCESSING: 'Preparing',
+  SHIPPED: 'In transit',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+  REFUNDED: 'Refunded'
 };
 
-// 결제 상태 한글 매핑
+// Payment status labels
 export const PAYMENT_STATUS_MAP = {
-  PENDING: '결제 대기',
-  COMPLETED: '결제 완료',
-  FAILED: '결제 실패',
-  CANCELLED: '결제 취소',
-  REFUNDED: '환불 완료'
+  PENDING: 'Payment pending',
+  COMPLETED: 'Payment completed',
+  FAILED: 'Payment failed',
+  CANCELLED: 'Payment cancelled',
+  REFUNDED: 'Refunded'
 };
 
-// 주문 아이템 상태 한글 매핑
+// Order item status labels
 export const ITEM_STATUS_MAP = {
-  PENDING: '처리 대기',
-  CONFIRMED: '확인됨',
-  PROCESSING: '준비 중',
-  SHIPPED: '배송됨',
-  DELIVERED: '배송 완료',
-  CANCELLED: '취소됨',
-  RETURNED: '반품됨',
-  REFUNDED: '환불됨'
+  PENDING: 'Pending',
+  CONFIRMED: 'Confirmed',
+  PROCESSING: 'Processing',
+  SHIPPED: 'Shipped',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+  RETURNED: 'Returned',
+  REFUNDED: 'Refunded'
 };

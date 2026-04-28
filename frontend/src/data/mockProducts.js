@@ -1,16 +1,16 @@
 const BASE_PRODUCTS = [
-  { legacyId: 1, id: 'p-001', name: '코지 니트 스웨터', price: 45000, category: 'spring-summer' },
-  { legacyId: 2, id: 'p-002', name: '레인보우 레인코트', price: 38000, category: 'spring-summer' },
-  { legacyId: 3, id: 'p-003', name: '윈터 패딩 자켓', price: 89000, category: 'fall-winter' },
-  { legacyId: 4, id: 'p-004', name: '체크 셔츠', price: 32000, category: 'spring-summer' },
-  { legacyId: 5, id: 'p-005', name: '플리스 후드티', price: 52000, category: 'fall-winter' },
-  { legacyId: 6, id: 'p-006', name: '실크 스카프', price: 25000, category: 'accessories' },
-  { legacyId: 7, id: 'p-007', name: '데님 재킷', price: 67000, category: 'spring-summer' },
-  { legacyId: 8, id: 'p-008', name: '울 코트', price: 125000, category: 'fall-winter' },
-  { legacyId: 9, id: 'p-009', name: '리본 헤어밴드', price: 18000, category: 'accessories' },
-  { legacyId: 10, id: 'p-010', name: '스트라이프 티셔츠', price: 28000, category: 'spring-summer' },
-  { legacyId: 11, id: 'p-011', name: '털 부츠', price: 42000, category: 'accessories' },
-  { legacyId: 12, id: 'p-012', name: '카디건', price: 58000, category: 'fall-winter' }
+  { legacyId: 1, id: 'p-001', name: 'Cozy Knit Sweater', price: 45000, category: 'spring-summer' },
+  { legacyId: 2, id: 'p-002', name: 'Rainbow Raincoat', price: 38000, category: 'spring-summer' },
+  { legacyId: 3, id: 'p-003', name: 'Winter Puffer Jacket', price: 89000, category: 'fall-winter' },
+  { legacyId: 4, id: 'p-004', name: 'Checked Shirt', price: 32000, category: 'spring-summer' },
+  { legacyId: 5, id: 'p-005', name: 'Fleece Hoodie', price: 52000, category: 'fall-winter' },
+  { legacyId: 6, id: 'p-006', name: 'Silk Scarf', price: 25000, category: 'accessories' },
+  { legacyId: 7, id: 'p-007', name: 'Denim Jacket', price: 67000, category: 'spring-summer' },
+  { legacyId: 8, id: 'p-008', name: 'Wool Coat', price: 125000, category: 'fall-winter' },
+  { legacyId: 9, id: 'p-009', name: 'Ribbon Headband', price: 18000, category: 'accessories' },
+  { legacyId: 10, id: 'p-010', name: 'Striped T-Shirt', price: 28000, category: 'spring-summer' },
+  { legacyId: 11, id: 'p-011', name: 'Fur Boots', price: 42000, category: 'accessories' },
+  { legacyId: 12, id: 'p-012', name: 'Cardigan', price: 58000, category: 'fall-winter' }
 ]
 
 const MOCK_IMAGE_COLORS = [
@@ -50,9 +50,9 @@ export const MOCK_PRODUCT_IMAGES = BASE_PRODUCTS.flatMap((product) => (
 
 const withProductMeta = (product) => ({
   ...product,
-  description: `${product.name} 제품입니다. 반려견의 편안한 착용감과 활동성을 고려한 디자인입니다.`,
-  detailedDescription: `${product.name}은(는) 시월의 시즌 무드를 반영한 아이템으로, 일상 산책부터 특별한 외출까지 폭넓게 매치할 수 있습니다.`,
-  features: ['부드러운 착용감', '가벼운 무게감', '활동성 중심 패턴', '손쉬운 관리'],
+  description: `${product.name} is designed for comfort and mobility for everyday walks and outings.`,
+  detailedDescription: `Shop this ${product.name} for a season-ready look that works from daily walks to special outings.`,
+  features: ['Soft, comfortable fit', 'Lightweight construction', 'Movement-friendly design', 'Easy care'],
   colors: [
     { name: 'Cream', value: '#EFE8DD' },
     { name: 'Olive', value: '#7B8561' },

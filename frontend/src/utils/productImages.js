@@ -42,20 +42,20 @@ export const getProductImages = (product, max = 8) => {
   console.log('getProductImages: Processing product', product.id, product.name)
   console.log('getProductImages: Product images array:', product.images)
 
-  // 백엔드 API에서 받은 이미지 데이터를 우선적으로 사용
+  // Use images provided by backend API first.
   if (Array.isArray(product.images) && product.images.length > 0) {
     const apiImages = product.images.map(img => img.imageUrl).filter(Boolean)
     console.log('getProductImages: API images found:', apiImages)
     imageCandidates.push(...apiImages)
   }
 
-  // Legacy image field도 확인
+  // Also check legacy image field.
   if (product.image) {
     console.log('getProductImages: Legacy image found:', product.image)
     imageCandidates.unshift(product.image)
   }
 
-  // 이미지가 부족한 경우에만 fallback 이미지 추가
+  // Add fallback images only when the candidate list is short.
   if (imageCandidates.length < max) {
     const fallbackCount = max - imageCandidates.length
     console.log('getProductImages: Adding', fallbackCount, 'fallback images')

@@ -1,3 +1,5 @@
+import aboutImage from '../../assets/about_image.png'
+
 const About = () => {
   return (
     <section className="bg-[#ececec] text-[#111111]">
@@ -20,14 +22,14 @@ const About = () => {
           <div className="self-end">
             <div className="aspect-[4/5] w-full overflow-hidden rounded-[22px] bg-[#d8d8d8]">
               <img
-                src="/about-reference.png"
+                src={aboutImage}
                 alt="Owner and dog portrait"
                 className="h-full w-full object-cover object-[20%_86%]"
               />
             </div>
           </div>
 
-          <div className="space-y-14 text-[20px] font-semibold leading-[1.35] md:space-y-16 md:text-[24px] lg:text-[29px]">
+          <div className="space-y-14 text-[14px] font-semibold leading-[1.35] md:space-y-16 md:text-[20px] lg:text-[20px]">
             <p className="max-w-[820px]">
               i moved five times till i turn to five months. maybe i&apos;m too active or hairy? i don&apos;t know
               <br />

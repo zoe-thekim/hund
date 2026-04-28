@@ -99,10 +99,10 @@ const Products = () => {
       {/*  >*/}
       {/*    <div className="text-micro-label mb-6">OUR COLLECTIONS</div>*/}
       {/*    <h1 className="text-display text-october-text mb-12">*/}
-      {/*      당신의 반려견을 위한<br />특별한 스타일링*/}
+      {/*      Styling made for your pup, every day*/}
       {/*    </h1>*/}
       {/*    <p className="text-body-large max-w-lg mx-auto mb-16">*/}
-      {/*      계절과 순간에 맞는 완벽한 의상을 발견하세요*/}
+      {/*      Discover the right piece for every season and every outing*/}
       {/*    </p>*/}
       {/*    <div className="text-micro-label">*/}
       {/*      {filteredProducts.length} PRODUCTS AVAILABLE*/}
@@ -194,7 +194,7 @@ const Products = () => {
           ) : (
             <div className="text-center py-32">
               <div className="text-micro-label mb-6">NO PRODUCTS</div>
-              <h3 className="text-product-title text-october-text mb-8">다른 컬렉션을 선택해보세요</h3>
+              <h3 className="text-product-title text-october-text mb-8">Try a Different Collection</h3>
               <button
                 onClick={() => handleCategoryChange('all')}
                 className="px-6 py-3 border border-gray-900 text-gray-900 font-medium text-sm hover:bg-gray-900 hover:text-white transition-all duration-300"

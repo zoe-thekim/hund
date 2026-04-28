@@ -1,4 +1,5 @@
 import useStore from '../store/useStore'
+import { getFirstProductImage, handleImageError } from '../utils/imageUtils'
 
 const CartItem = ({ item }) => {
   const { updateCartQuantity, removeFromCart } = useStore()
@@ -15,9 +16,10 @@ const CartItem = ({ item }) => {
     <div className="card-modern p-8 flex items-center space-x-8">
       <div className="w-24 h-24 bg-october-bg rounded-2xl overflow-hidden flex-shrink-0">
         <img
-          src={item.images?.[0] || `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#ececec"/></svg>')}`}
+          src={getFirstProductImage(item)}
           alt={item.name}
           className="w-full h-full object-cover"
+          onError={handleImageError}
         />
       </div>
 
